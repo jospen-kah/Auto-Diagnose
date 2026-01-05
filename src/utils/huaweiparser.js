@@ -1,13 +1,45 @@
-// src/utils/huaweiparser.js
+// ================= SITE CODE EXTRACTION =================
+export const extractSiteCode = (value) => {
+  if (!value) return "";
 
-// Extract site code from full site name or site ID
-export const extractSiteCode = (fullNameOrID) => {
-  if (!fullNameOrID) return "";
-  const match = fullNameOrID.match(/^(EXN|NRD|ADM|SUO|NRO|CTR|LIT|EST|OST|SUD)_(\d{3,4})/);
+  const str = String(value);
+  const match = str.match(
+    /(EXN|NRD|ADM|SUO|NRO|CTR|LIT|EST|OST|SUD)_(\d{3,4})/
+  );
+
   return match ? match[0] : "";
 };
 
-// List of valid alarms
+// ================= DATE FORMATTER (HUAWEI SAFE) =================
+const formatHuaweiDate = (rawDate) => {
+  if (!rawDate) return null;
+
+  let jsDate;
+
+  // ✅ Already a JS Date (cellDates: true)
+  if (rawDate instanceof Date) {
+    jsDate = rawDate;
+  }
+  // ✅ Excel serial number
+  else if (typeof rawDate === "number") {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    jsDate = new Date(excelEpoch.getTime() + rawDate * 86400000);
+  }
+  // ✅ String fallback
+  else {
+    jsDate = new Date(rawDate);
+  }
+
+  if (isNaN(jsDate)) return null;
+
+  const y = jsDate.getUTCFullYear();
+  const m = String(jsDate.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jsDate.getUTCDate()).padStart(2, "0");
+
+  return `${y}-${m}-${d} 00:00:00:00`;
+};
+
+// ================= VALID ALARMS =================
 const VALID_ALARMS = [
   "Power Supply DC Output Out of Range",
   "Battery Power Unavailable",
@@ -46,104 +78,114 @@ const VALID_ALARMS = [
   "Mains Power Fail",
 ];
 
-// Parse Huawei Excel rows
+// ================= MAIN PARSER =================
 export const parseHuaweiData = (rows, kpiType, existingSiteCodes = []) => {
   const parsed = [];
-  if (!rows.length) return parsed;
+  if (!rows?.length) return parsed;
 
+  console.group(`📡 Huawei Parser → ${kpiType}`);
+  console.log("Rows:", rows.length);
+
+  // ===================== ALARM LOGIC (UNCHANGED) =====================
   if (kpiType === "Alarm") {
     const siteAlarmMap = {};
 
-    // Aggregate alarm occurrences per siteCode
     rows.forEach((row) => {
-      const siteID = row["Site ID"];
-      const siteCode = extractSiteCode(siteID);
-      if (!siteCode) return; // skip invalid site IDs
-      if (existingSiteCodes.length && !existingSiteCodes.includes(siteCode)) return;
+      const rawSite =
+        row["Site ID"] ||
+        row["Site Name"] ||
+        row["NE Name"] ||
+        row["Managed Object"] ||
+        row["Object"] ||
+        "";
 
       const alarmName = row["Alarm Name"];
+      const siteCode = extractSiteCode(rawSite);
+
+      if (!siteCode) return;
+      if (existingSiteCodes.length && !existingSiteCodes.includes(siteCode)) return;
       if (!alarmName || !VALID_ALARMS.includes(alarmName)) return;
 
-      if (!siteAlarmMap[siteCode]) siteAlarmMap[siteCode] = {};
-      if (!siteAlarmMap[siteCode][alarmName]) siteAlarmMap[siteCode][alarmName] = 0;
-
-      // Increment count for repeated alarms
-      siteAlarmMap[siteCode][alarmName] += 1;
+      siteAlarmMap[siteCode] ??= {};
+      siteAlarmMap[siteCode][alarmName] ??= 0;
+      siteAlarmMap[siteCode][alarmName]++;
     });
 
-    // Build parsed array: top alarm per siteCode
-    (existingSiteCodes.length ? existingSiteCodes : Object.keys(siteAlarmMap)).forEach((siteCode) => {
-      const siteRow = rows.find((r) => extractSiteCode(r["Site ID"]) === siteCode);
-      const siteName = siteRow?.["Site ID"] ?? siteCode;
+    const sites =
+      existingSiteCodes.length > 0
+        ? existingSiteCodes
+        : Object.keys(siteAlarmMap);
 
-      const alarms = siteAlarmMap[siteCode] ? Object.entries(siteAlarmMap[siteCode]) : [];
-      if (alarms.length === 0) {
-        parsed.push({
-          siteCode,
-          siteName,
-          kpiType,
-          beginTime: "Top Alarm",
-          kpiValue: "Need BORAN analyses",
-        });
-      } else {
-        // Sort by highest occurrence
-        alarms.sort((a, b) => b[1] - a[1]);
-        parsed.push({
-          siteCode,
-          siteName,
-          kpiType,
-          beginTime: "Top Alarm",
-          kpiValue: alarms[0][0],
-        });
-      }
+    sites.forEach((siteCode) => {
+      const alarms = siteAlarmMap[siteCode]
+        ? Object.entries(siteAlarmMap[siteCode])
+        : [];
+
+      parsed.push({
+        siteCode,
+        siteName: siteCode,
+        kpiType: "Alarm",
+        beginTime: "Alarm",
+        kpiValue: alarms.length
+          ? alarms.sort((a, b) => b[1] - a[1])[0][0]
+          : "Need BORAN analyses",
+      });
     });
 
+    console.groupEnd();
     return parsed;
   }
 
-  // Non-alarm KPIs (keep original logic)
+  // ================= NON-ALARM KPIs (FINAL FIX) =================
   rows.forEach((row) => {
-    let siteNameCol = "";
+    let siteCol = "";
     let valueCol = "";
 
     switch (kpiType) {
       case "2G":
-        siteNameCol = "Site Name";
+        siteCol = "Site Name";
         valueCol = "TR373:Cell Availability(%)";
         break;
       case "3G":
-        siteNameCol = "NODEBNAME";
+        siteCol = "NODEBNAME";
         valueCol = "3G Availability (Group)";
         break;
       case "4G":
-        siteNameCol = "eNodeB Name";
+        siteCol = "eNodeB Name";
         valueCol = "4G Cell Availability (Excluding manual)";
         break;
       case "Voltage":
-        siteNameCol = "eGBTS";
+        siteCol = "eGBTS";
         valueCol = "VS.RADIOEQM.InputVoltage.Min(V)";
         break;
       case "Packet Loss":
-        siteNameCol = "NodeB";
+        siteCol = "NodeB";
         valueCol = "VS.IPPM.Forword.DropMeans(%)";
         break;
       default:
-        break;
+        return;
     }
 
-    const beginTime = row["Date"];
-    const fullName = row[siteNameCol];
+    const siteName = row[siteCol];
+    if (!siteName) return;
 
-    if (beginTime !== undefined && fullName) {
-      parsed.push({
-        siteCode: extractSiteCode(fullName),
-        siteName: fullName,
-        kpiType,
-        beginTime,
-        kpiValue: row[valueCol] ?? "-",
-      });
-    }
+    const siteCode = extractSiteCode(siteName);
+    if (!siteCode) return;
+
+    parsed.push({
+      siteCode,
+      siteName,
+      kpiType,
+      beginTime: formatHuaweiDate(row["Date"]),
+      kpiValue:
+        row[valueCol] === undefined ||
+        row[valueCol] === null ||
+        row[valueCol] === ""
+          ? null
+          : Number(row[valueCol]),
+    });
   });
 
+  console.groupEnd();
   return parsed;
 };

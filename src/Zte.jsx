@@ -14,6 +14,8 @@ const ZTEPage = () => {
     "Packet Loss": null,
   });
 
+  const [loading, setLoading] = useState(false); // <-- Loading state
+
   const handleFileChange = (e, key) => {
     const file = e.target.files[0];
     if (file && (file.name.endsWith(".xls") || file.name.endsWith(".xlsx"))) {
@@ -26,6 +28,8 @@ const ZTEPage = () => {
   const allFilesSelected = Object.values(files).every((f) => f !== null);
 
   const handleNext = () => {
+    setLoading(true); // <-- Start loading
+
     const allParsedData = [];
 
     const promises = Object.keys(files).map((key) => {
@@ -50,6 +54,8 @@ const ZTEPage = () => {
     Promise.all(promises).then(() => {
       console.log("🔥 FINAL PARSED DATA:", allParsedData);
       navigate("/zte-table", { state: { data: allParsedData } });
+    }).finally(() => {
+      setLoading(false); // <-- Stop loading (just in case navigation fails)
     });
   };
 
@@ -81,9 +87,10 @@ const ZTEPage = () => {
           <button
             type="button"
             onClick={handleNext}
-            className="px-6 py-3 bg-purple-400 text-white font-semibold rounded-lg hover:bg-purple-500 transition"
+            disabled={loading} // <-- Disable button while loading
+            className="px-6 py-3 bg-purple-400 text-white font-semibold rounded-lg hover:bg-purple-500 transition disabled:opacity-50"
           >
-            Next
+            {loading ? "Loading..." : "Next"} {/* <-- Show loading text */}
           </button>
         </div>
       )}

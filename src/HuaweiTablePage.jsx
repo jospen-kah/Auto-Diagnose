@@ -16,10 +16,24 @@ const HuaweiTablePage = () => {
   useEffect(() => {
     if (location.state?.data) {
       setRawData(location.state.data);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(location.state.data));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(location.state.data));
+      } catch (error) {
+        console.warn(
+          "⚠️ Huawei data too large for localStorage. Data will not persist on refresh.",
+          error
+        );
+      }
     } else {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setRawData(JSON.parse(saved));
+      if (saved) {
+        try {
+          setRawData(JSON.parse(saved));
+        } catch (e) {
+          console.error("❌ Failed to parse stored Huawei data", e);
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
     }
   }, [location.state]);
 
@@ -46,31 +60,47 @@ const HuaweiTablePage = () => {
   kpiTypes.forEach((kpi) => {
     const rows = rawData[kpi] || [];
     const dates = [];
+
     rows.forEach((r) => {
-      if (!dates.includes(r.beginTime)) dates.push(r.beginTime);
+      if (kpi !== "Alarm" && r.beginTime && !dates.includes(r.beginTime)) {
+        dates.push(r.beginTime);
+      }
     });
-    datesByKPI[kpi] = kpi === "Alarm" ? dates.slice(-3) : dates.slice(-7);
+
+    // Alarm has ONE column
+    datesByKPI[kpi] = kpi === "Alarm" ? ["Alarm"] : dates.slice(-7);
   });
 
   /* ================= GROUP BY SITE ================= */
   const groupedBySite = {};
+
   Object.keys(rawData).forEach((kpi) => {
     rawData[kpi].forEach((row) => {
-      const { siteCode, siteName, beginTime } = row;
-      let value = row.kpiValue;
+      const { siteCode, siteName, beginTime, kpiValue } = row;
+
+      if (!siteCode) return;
 
       if (!groupedBySite[siteCode]) {
-        groupedBySite[siteCode] = { siteCode, siteName, kpis: {} };
+        groupedBySite[siteCode] = {
+          siteCode,
+          siteName,
+          kpis: {},
+        };
       }
+
       if (!groupedBySite[siteCode].kpis[kpi]) {
-        groupedBySite[siteCode].kpis[kpi] = {};
+        groupedBySite[siteCode].kpis[kpi] = kpi === "Alarm" ? null : {};
       }
 
-      if (kpi === "Voltage" && value != null) value *= 1000;
-      if (kpi === "Packet Loss" && value != null) value = `${value}%`;
-      if (kpi === "Alarm") value = "-";
-
-      groupedBySite[siteCode].kpis[kpi][beginTime] = value;
+      if (kpi === "Voltage" && kpiValue != null) {
+        groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue * 1000;
+      } else if (kpi === "Packet Loss" && kpiValue != null) {
+        groupedBySite[siteCode].kpis[kpi][beginTime] = `${kpiValue}%`;
+      } else if (kpi === "Alarm") {
+        groupedBySite[siteCode].kpis[kpi] = kpiValue;
+      } else {
+        groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue ?? "-";
+      }
     });
   });
 
@@ -104,6 +134,10 @@ const HuaweiTablePage = () => {
       return num < 1 ? "bg-green-500 text-white" : "bg-orange-500 text-white";
     }
 
+    if (kpi === "Alarm") {
+      return "bg-red-600 text-white";
+    }
+
     return "";
   };
 
@@ -114,17 +148,28 @@ const HuaweiTablePage = () => {
       "Site Name": siteData.siteName,
     };
 
+    let allZero = true;
+
     kpiTypes.forEach((kpi) => {
+      if (kpi === "Alarm") {
+        result[kpi] = siteData.kpis[kpi] || "No Alarm Data";
+        return;
+      }
+
       const targetDay = day || datesByKPI[kpi].slice(-1)[0];
       const value = siteData.kpis[kpi]?.[targetDay];
 
       if (["2G", "3G", "4G"].includes(kpi)) {
         if (value === undefined || value === "-" || value === null) {
           result[kpi] = "No value displayed";
-        } else if (value === 0 || value < 97) {
+        } else if (value === 0) {
           result[kpi] = "Degraded";
+        } else if (value < 97) {
+          result[kpi] = "Degraded";
+          allZero = false;
         } else {
           result[kpi] = "Ok";
+          allZero = false;
         }
       } else if (kpi === "Voltage") {
         result[kpi] =
@@ -137,10 +182,20 @@ const HuaweiTablePage = () => {
         const num = parseFloat((value || "").replace("%", ""));
         result[kpi] =
           isNaN(num) ? "No value displayed" : num >= 2 ? "Packet Loss" : "No Packet Loss";
-      } else {
-        result[kpi] = "-";
       }
     });
+
+    const last2G = siteData.kpis["2G"]?.[datesByKPI["2G"].slice(-1)[0]] ?? 0;
+    const last3G = siteData.kpis["3G"]?.[datesByKPI["3G"].slice(-1)[0]] ?? 0;
+    const last4G = siteData.kpis["4G"]?.[datesByKPI["4G"].slice(-1)[0]] ?? 0;
+
+    if (allZero || (last2G === 0 && last3G === 0 && last4G === 0)) {
+      result["Site Status"] = "Down";
+    } else if (last2G > 97 && last3G > 97 && last4G > 97) {
+      result["Site Status"] = "Ok";
+    } else {
+      result["Site Status"] = "Degraded";
+    }
 
     return result;
   };
@@ -161,26 +216,20 @@ const HuaweiTablePage = () => {
         />
       </div>
 
-      <div
-        className={`grow overflow-auto mx-4 border border-gray-700 rounded ${
-          selectedSite ? "blur-sm pointer-events-none" : ""
-        }`}
-      >
+      <div className="grow overflow-auto mx-4 border border-gray-700 rounded">
         <table className="border-collapse min-w-max">
+          {/* ================= TABLE HEAD ================= */}
           <thead>
             <tr className="bg-gray-800">
               <th rowSpan={2} className="border px-4 py-2">#</th>
               <th rowSpan={2} className="border px-4 py-2">Site Code</th>
               <th rowSpan={2} className="border px-4 py-2">Site Name</th>
-
               {kpiTypes.map((kpi, idx) => (
                 <React.Fragment key={kpi}>
                   <th colSpan={datesByKPI[kpi].length} className="border px-4 py-2 text-center">
                     {kpi}
                   </th>
-                  {idx < kpiTypes.length - 1 && (
-                    <th className="border px-4 py-2 bg-gray-900"></th>
-                  )}
+                  {idx < kpiTypes.length - 1 && <th className="border px-4 py-2 bg-gray-900"></th>}
                 </React.Fragment>
               ))}
             </tr>
@@ -189,29 +238,34 @@ const HuaweiTablePage = () => {
               {kpiTypes.map((kpi, idx) => (
                 <React.Fragment key={kpi}>
                   {datesByKPI[kpi].map((date) => (
-                    <th key={date} className="border px-4 py-2">{date}</th>
+                    <th key={`${kpi}-${date}`} className="border px-4 py-2">{date}</th>
                   ))}
-                  {idx < kpiTypes.length - 1 && (
-                    <th className="border px-4 py-2 bg-gray-900"></th>
-                  )}
+                  {idx < kpiTypes.length - 1 && <th className="border px-4 py-2 bg-gray-900"></th>}
                 </React.Fragment>
               ))}
             </tr>
           </thead>
 
+          {/* ================= TABLE BODY ================= */}
           <tbody>
             {filteredSites.map(([code, site], i) => (
               <tr key={code} className="hover:bg-gray-800">
                 <td className="border px-4 py-2">{i + 1}</td>
                 <td
-                  className="border px-4 py-2 cursor-pointer"
-                  onClick={() => { setSelectedSite(site); setSelectedDay(null); }}
+                  className="border px-4 py-2 cursor-pointer text-white "
+                  onClick={() => {
+                    setSelectedSite(site);
+                    setSelectedDay(null); // null = last day
+                  }}
                 >
                   {code}
                 </td>
                 <td
-                  className="border px-4 py-2 cursor-pointer"
-                  onClick={() => { setSelectedSite(site); setSelectedDay(null); }}
+                  className="border px-4 py-2 cursor-pointer text-white "
+                  onClick={() => {
+                    setSelectedSite(site);
+                    setSelectedDay(null); // null = last day
+                  }}
                 >
                   {site.siteName}
                 </td>
@@ -219,20 +273,22 @@ const HuaweiTablePage = () => {
                 {kpiTypes.map((kpi, idx) => (
                   <React.Fragment key={kpi}>
                     {datesByKPI[kpi].map((date) => {
-                      const val = site.kpis[kpi]?.[date] ?? "-";
+                      const val = kpi === "Alarm" ? site.kpis[kpi] ?? "-" : site.kpis[kpi]?.[date] ?? "-";
+
                       return (
                         <td
-                          key={date}
-                          className={`border px-4 py-2 text-center ${getCellColor(kpi, val)}`}
-                          onClick={() => { setSelectedSite(site); setSelectedDay(date); }}
+                          key={`${code}-${kpi}-${date}`}
+                          className={`border px-4 py-2 text-center ${getCellColor(kpi, val)} cursor-pointer`}
+                          onClick={() => {
+                            setSelectedSite(site);
+                            setSelectedDay(date); // specific day
+                          }}
                         >
                           {val}
                         </td>
                       );
                     })}
-                    {idx < kpiTypes.length - 1 && (
-                      <td className="border bg-gray-900"></td>
-                    )}
+                    {idx < kpiTypes.length - 1 && <td className="border bg-gray-900"></td>}
                   </React.Fragment>
                 ))}
               </tr>
@@ -241,24 +297,35 @@ const HuaweiTablePage = () => {
         </table>
       </div>
 
-      {/* MODAL */}
+      {/* ================= MODAL ================= */}
       {selectedSite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/60"
-            onClick={() => { setSelectedSite(null); setSelectedDay(null); }}
+            className="absolute inset-0 backdrop-blur-sm bg-black/60"
+            onClick={() => {
+              setSelectedSite(null);
+              setSelectedDay(null);
+            }}
           />
-          <div className="bg-gray-800 p-6 rounded z-10 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-3">
-              Site Analysis {selectedDay && `(Date: ${selectedDay})`}
+          <div className="bg-gray-800 p-6 rounded z-10 max-w-md w-full shadow-lg">
+            <h3 className="text-xl font-bold mb-2">
+              Site Analysis: {selectedSite.siteName}
             </h3>
-            {Object.entries(getSiteAnalysis(selectedSite, selectedDay)).map(
-              ([k, v]) => <p key={k}><strong>{k}:</strong> {v}</p>
-            )}
+            <p className="mb-3 text-sm text-gray-300">
+              Day: {selectedDay ?? "Last available day"}
+            </p>
+            {Object.entries(getSiteAnalysis(selectedSite, selectedDay)).map(([k, v]) => (
+              <p key={k} className="mb-1">
+                <strong>{k}:</strong> {v}
+              </p>
+            ))}
             <div className="text-right mt-4">
               <button
-                className="px-4 py-2 bg-blue-500 rounded"
-                onClick={() => { setSelectedSite(null); setSelectedDay(null); }}
+                className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
+                onClick={() => {
+                  setSelectedSite(null);
+                  setSelectedDay(null);
+                }}
               >
                 Close
               </button>
