@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getSitePriority } from "./utils/sitePriority"; // adjust path
 
 const STORAGE_KEY = "HUAWEI_TABLE_DATA";
 
@@ -9,6 +10,8 @@ const HuaweiTablePage = () => {
 
   const [rawData, setRawData] = useState({});
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [selectedSite, setSelectedSite] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -67,17 +70,14 @@ const HuaweiTablePage = () => {
       }
     });
 
-    // Alarm has ONE column
     datesByKPI[kpi] = kpi === "Alarm" ? ["Alarm"] : dates.slice(-7);
   });
 
   /* ================= GROUP BY SITE ================= */
   const groupedBySite = {};
-
   Object.keys(rawData).forEach((kpi) => {
     rawData[kpi].forEach((row) => {
       const { siteCode, siteName, beginTime, kpiValue } = row;
-
       if (!siteCode) return;
 
       if (!groupedBySite[siteCode]) {
@@ -103,43 +103,6 @@ const HuaweiTablePage = () => {
       }
     });
   });
-
-  const filteredSites = Object.entries(groupedBySite).filter(
-    ([code, site]) =>
-      code.toLowerCase().includes(search.toLowerCase()) ||
-      site.siteName.toLowerCase().includes(search.toLowerCase())
-  );
-
-  /* ================= COLORS ================= */
-  const getCellColor = (kpi, value) => {
-    if (value === undefined || value === null || value === "-") return "";
-
-    let num = value;
-    if (typeof value === "string" && value.endsWith("%")) {
-      num = parseFloat(value);
-    }
-
-    if (["2G", "3G", "4G"].includes(kpi)) {
-      if (num === 0) return "bg-red-500 text-white";
-      if (num > 97) return "bg-green-500 text-white";
-      if (num >= 50) return "bg-yellow-400 text-black";
-      return "bg-orange-500 text-white";
-    }
-
-    if (kpi === "Voltage") {
-      return num < 45000 ? "bg-orange-500 text-white" : "bg-green-500 text-white";
-    }
-
-    if (kpi === "Packet Loss") {
-      return num < 1 ? "bg-green-500 text-white" : "bg-orange-500 text-white";
-    }
-
-    if (kpi === "Alarm") {
-      return "bg-red-600 text-white";
-    }
-
-    return "";
-  };
 
   /* ================= SITE ANALYSIS ================= */
   const getSiteAnalysis = (siteData, day = null) => {
@@ -200,6 +163,55 @@ const HuaweiTablePage = () => {
     return result;
   };
 
+  /* ================= FILTERED SITES ================= */
+  const filteredSites = Object.entries(groupedBySite).filter(([code, site]) => {
+    const siteAnalysis = getSiteAnalysis(site);
+    const sitePriority = getSitePriority(site, datesByKPI);
+
+    const matchesSearch =
+      code.toLowerCase().includes(search.toLowerCase()) ||
+      site.siteName.toLowerCase().includes(search.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "ALL" || siteAnalysis["Site Status"] === statusFilter;
+
+    const matchesPriority =
+      priorityFilter === "ALL" || sitePriority === priorityFilter;
+
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  /* ================= COLORS ================= */
+  const getCellColor = (kpi, value) => {
+    if (value === undefined || value === null || value === "-") return "";
+
+    let num = value;
+    if (typeof value === "string" && value.endsWith("%")) {
+      num = parseFloat(value);
+    }
+
+    if (["2G", "3G", "4G"].includes(kpi)) {
+      if (num === 0) return "bg-red-500 text-white";
+      if (num > 97) return "bg-green-500 text-white";
+      if (num >= 50) return "bg-yellow-400 text-black";
+      return "bg-orange-500 text-white";
+    }
+
+    if (kpi === "Voltage") {
+      return num < 45000 ? "bg-orange-500 text-white" : "bg-green-500 text-white";
+    }
+
+    if (kpi === "Packet Loss") {
+      return num < 1 ? "bg-green-500 text-white" : "bg-orange-500 text-white";
+    }
+
+    if (kpi === "Alarm") {
+      return "bg-red-600 text-white";
+    }
+
+    return "";
+  };
+
   /* ================= RENDER ================= */
   return (
     <div className="w-screen h-screen bg-gray-900 text-white flex flex-col">
@@ -207,13 +219,37 @@ const HuaweiTablePage = () => {
         Huawei KPI Performance Report
       </h2>
 
-      <div className="px-4 my-4">
+      {/* ================= SEARCH + FILTER ================= */}
+      <div className="px-4 my-4 flex gap-4 items-center flex-wrap">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search site code or name"
-          className="px-4 py-2 border rounded text-white"
+          className="px-4 py-2 border rounded text-white bg-gray-800"
         />
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-4 py-2 border rounded text-white bg-gray-800"
+        >
+          <option value="ALL">All Status</option>
+          <option value="Ok" className="text-green-400">Ok</option>
+          <option value="Degraded" className="text-amber-300">Degraded</option>
+          <option value="Down"className="text-red-400">Down</option>
+        </select>
+
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+          className="px-4 py-2 border rounded text-white bg-gray-800"
+        >
+          <option value="ALL">All Priorities</option>
+          <option value="P0" className="text-red-500">P0</option>
+          <option value="P1" className="text-orange-500">P1</option>
+          <option value="P2" className="text-yellow-500">P2</option>
+          <option value="OK" className="text-green-500">OK</option>
+        </select>
       </div>
 
       <div className="grow overflow-auto mx-4 border border-gray-700 rounded">
@@ -224,14 +260,20 @@ const HuaweiTablePage = () => {
               <th rowSpan={2} className="border px-4 py-2">#</th>
               <th rowSpan={2} className="border px-4 py-2">Site Code</th>
               <th rowSpan={2} className="border px-4 py-2">Site Name</th>
+
               {kpiTypes.map((kpi, idx) => (
                 <React.Fragment key={kpi}>
                   <th colSpan={datesByKPI[kpi].length} className="border px-4 py-2 text-center">
                     {kpi}
                   </th>
-                  {idx < kpiTypes.length - 1 && <th className="border px-4 py-2 bg-gray-900"></th>}
+                  {idx < kpiTypes.length - 1 && (
+                    <th className="border bg-gray-900" style={{ width: "25px" }}></th>
+                  )}
                 </React.Fragment>
               ))}
+
+              <th rowSpan={2} className="border px-4 py-2">Site Status</th>
+              <th rowSpan={2} className="border px-4 py-2">Priority</th>
             </tr>
 
             <tr className="bg-gray-700">
@@ -240,59 +282,63 @@ const HuaweiTablePage = () => {
                   {datesByKPI[kpi].map((date) => (
                     <th key={`${kpi}-${date}`} className="border px-4 py-2">{date}</th>
                   ))}
-                  {idx < kpiTypes.length - 1 && <th className="border px-4 py-2 bg-gray-900"></th>}
+                  {idx < kpiTypes.length - 1 && (
+                    <th className="border bg-gray-900" style={{ width: "8px" }}></th>
+                  )}
                 </React.Fragment>
               ))}
             </tr>
           </thead>
 
-          {/* ================= TABLE BODY ================= */}
           <tbody>
-            {filteredSites.map(([code, site], i) => (
-              <tr key={code} className="hover:bg-gray-800">
-                <td className="border px-4 py-2">{i + 1}</td>
-                <td
-                  className="border px-4 py-2 cursor-pointer text-white "
-                  onClick={() => {
-                    setSelectedSite(site);
-                    setSelectedDay(null); // null = last day
-                  }}
-                >
-                  {code}
-                </td>
-                <td
-                  className="border px-4 py-2 cursor-pointer text-white "
-                  onClick={() => {
-                    setSelectedSite(site);
-                    setSelectedDay(null); // null = last day
-                  }}
-                >
-                  {site.siteName}
-                </td>
+            {filteredSites.map(([code, site], i) => {
+              const siteAnalysis = getSiteAnalysis(site, selectedDay);
+              const sitePriority = getSitePriority(site, datesByKPI);
 
-                {kpiTypes.map((kpi, idx) => (
-                  <React.Fragment key={kpi}>
-                    {datesByKPI[kpi].map((date) => {
-                      const val = kpi === "Alarm" ? site.kpis[kpi] ?? "-" : site.kpis[kpi]?.[date] ?? "-";
+              return (
+                <tr key={code} className="hover:bg-gray-800 cursor-pointer">
+                  <td className="border px-4 py-2">{i + 1}</td>
+                  <td
+                    className="border px-4 py-2"
+                    onClick={() => { setSelectedSite(site); setSelectedDay(null); }}
+                  >
+                    {code}
+                  </td>
+                  <td
+                    className="border px-4 py-2"
+                    onClick={() => { setSelectedSite(site); setSelectedDay(null); }}
+                  >
+                    {site.siteName}
+                  </td>
 
-                      return (
-                        <td
-                          key={`${code}-${kpi}-${date}`}
-                          className={`border px-4 py-2 text-center ${getCellColor(kpi, val)} cursor-pointer`}
-                          onClick={() => {
-                            setSelectedSite(site);
-                            setSelectedDay(date); // specific day
-                          }}
-                        >
-                          {val}
-                        </td>
-                      );
-                    })}
-                    {idx < kpiTypes.length - 1 && <td className="border bg-gray-900"></td>}
-                  </React.Fragment>
-                ))}
-              </tr>
-            ))}
+                  {kpiTypes.map((kpi, idx) => (
+                    <React.Fragment key={kpi}>
+                      {datesByKPI[kpi].map((date) => {
+                        const val = kpi === "Alarm" ? site.kpis[kpi] ?? "-" : site.kpis[kpi]?.[date] ?? "-";
+                        return (
+                          <td
+                            key={`${code}-${kpi}-${date}`}
+                            className={`border px-4 py-2 text-center ${getCellColor(kpi, val)}`}
+                            onClick={() => {
+                              setSelectedSite(site);
+                              setSelectedDay(date);
+                            }}
+                          >
+                            {val}
+                          </td>
+                        );
+                      })}
+                      {idx < kpiTypes.length - 1 && (
+                        <td className="border bg-gray-900" style={{ width: "8px" }}></td>
+                      )}
+                    </React.Fragment>
+                  ))}
+
+                  <td className="border px-4 py-2 font-bold">{siteAnalysis["Site Status"]}</td>
+                  <td className="border px-4 py-2 font-bold text-center">{sitePriority}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -302,15 +348,10 @@ const HuaweiTablePage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 backdrop-blur-sm bg-black/60"
-            onClick={() => {
-              setSelectedSite(null);
-              setSelectedDay(null);
-            }}
+            onClick={() => { setSelectedSite(null); setSelectedDay(null); }}
           />
           <div className="bg-gray-800 p-6 rounded z-10 max-w-md w-full shadow-lg">
-            <h3 className="text-xl font-bold mb-2">
-              Site Analysis: {selectedSite.siteName}
-            </h3>
+            <h3 className="text-xl font-bold mb-2">Site Analysis: {selectedSite.siteName}</h3>
             <p className="mb-3 text-sm text-gray-300">
               Day: {selectedDay ?? "Last available day"}
             </p>
@@ -322,10 +363,7 @@ const HuaweiTablePage = () => {
             <div className="text-right mt-4">
               <button
                 className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
-                onClick={() => {
-                  setSelectedSite(null);
-                  setSelectedDay(null);
-                }}
+                onClick={() => { setSelectedSite(null); setSelectedDay(null); }}
               >
                 Close
               </button>
