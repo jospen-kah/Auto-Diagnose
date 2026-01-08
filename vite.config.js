@@ -8,4 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    historyApiFallback: true,  // Enable history API fallback
+  },
 })
