@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { getSitePriority } from "./utils/sitePriority.js";
 import { getDomainAndPriority } from "./utils/domain.js";
 import siteMap from "./utils/sites_full.json";
-
 import Filters from "./components/filter.jsx";
 import KPITable from "./components/KpiTable.jsx";
 import SiteAnalysisModal from "./components/SiteAnalysisModal.jsx";
