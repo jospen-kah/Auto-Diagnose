@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { getSitePriorityZTE } from "./utils/sitePriorityZTE.js";
 import { getDomainAndPriorityZTE } from "./utils/domainZTE.js";
-import siteMap from "./utils/sites_full.json.";
-
+import siteMap from "./utils/sites_full.json";
 import Filters from "./components/filter.jsx";
 import KPITable from "./components/KpiTable.jsx";
 import SiteAnalysisModal from "./components/SiteAnalysisModal.jsx";
