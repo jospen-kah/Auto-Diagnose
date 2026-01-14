@@ -146,7 +146,7 @@ const HuaweiPage = () => {
             }`}
             disabled={loading}
           >
-            {loading ? "Loading..." : "Next"}
+            {loading ? "Loading..." : "Get Analysis"}
           </button>
         </div>
       )}
