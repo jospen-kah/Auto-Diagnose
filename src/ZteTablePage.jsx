@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
 import { getSitePriorityZTE } from "./utils/sitePriorityZTE.js";
 import { getDomainAndPriorityZTE } from "./utils/domainZTE.js";
 import siteMap from "./utils/sites_full.json";
