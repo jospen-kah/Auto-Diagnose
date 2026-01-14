@@ -5,9 +5,9 @@ import { getSitePriorityZTE } from "./utils/sitePriorityZTE.js";
 import { getDomainAndPriorityZTE } from "./utils/domainZTE.js";
 import siteMap from "./utils/sites_full.json";
 
-import Filters from "./components/filter.jsx";
-import KPITable from "./components/KpiTable.jsx";
-import SiteAnalysisModal from "./components/SiteAnalysisModal.jsx";
+import Filters from "./Components/filter.jsx";
+import KPITable from "./Components/KpiTable.jsx";
+import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
 
 const ZTETablePage = () => {
   const location = useLocation();
