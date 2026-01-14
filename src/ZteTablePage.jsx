@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { getSitePriorityZTE } from "./utils/sitePriorityZTE";
-import { getDomainAndPriorityZTE } from "./utils/domainZTE";
-import siteMap from "./utils/sites_full.json";
+import { getSitePriorityZTE } from "./utils/sitePriorityZTE.js";
+import { getDomainAndPriorityZTE } from "./utils/domainZTE.js";
+import siteMap from "./utils/sites_full.json.json";
 
-import Filters from "./components/filter";
-import KPITable from "./components/KpiTable";
-import SiteAnalysisModal from "./components/SiteAnalysisModal";
+import Filters from "./components/filter.jsx";
+import KPITable from "./components/KpiTable.jsx";
+import SiteAnalysisModal from "./components/SiteAnalysisModal.jsx";
 
 const ZTETablePage = () => {
   const location = useLocation();

@@ -1,13 +1,13 @@
 // src/HuaweiTablePage.jsx
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getSitePriority } from "./utils/sitePriority";
-import { getDomainAndPriority } from "./utils/domain";
+import { getSitePriority } from "./utils/sitePriority.js";
+import { getDomainAndPriority } from "./utils/domain.js";
 import siteMap from "./utils/sites_full.json";
 
-import Filters from "./components/filter";
-import KPITable from "./components/KpiTable";
-import SiteAnalysisModal from "./components/SiteAnalysisModal";
+import Filters from "./components/filter.jsx";
+import KPITable from "./components/KpiTable.jsx";
+import SiteAnalysisModal from "./components/SiteAnalysisModal.jsx";
 
 const STORAGE_KEY = "HUAWEI_TABLE_DATA";
 
