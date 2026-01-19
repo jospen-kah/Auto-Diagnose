@@ -6,6 +6,7 @@ import ZTEPage from './Zte';
 import ZTETablePage from './ZteTablePage';
 import HuaweiTablePage from './HuaweiTablePage';
 import HuaweiPage from './Huawei';
+import NokiaTablePage from './NokiaTablePage';
 
 // Navigation Component with active tab highlighting
 const TechLinks = () => {
@@ -76,6 +77,7 @@ const App = () => {
             <Route path="/zte" element={<ZTEPage />} />
             <Route path="/zte-table" element={<ZTETablePage />} />
             <Route path="/huawei-table" element={<HuaweiTablePage />} />
+            <Route path="/nokia-table" element={<NokiaTablePage />} />
             <Route path="/huawei" element={<HuaweiPage />} />
             <Route path="/" element={<ZTEPage />} />
           </Routes>

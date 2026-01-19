@@ -1,0 +1,169 @@
+// ================= SITE CODE EXTRACTION =================
+export const extractSiteCode = (value) => {
+  if (!value) return "";
+
+  const str = String(value);
+  const match = str.match(
+    /(EXN|NRD|ADM|SUO|NRO|CTR|LIT|EST|OST|SUD)_(\d{3,4})/
+  );
+
+  return match ? match[0] : "";
+};
+
+// ================= DATE FORMATTER (NOKIA SAFE) =================
+const formatNokiaDate = (rawDate) => {
+  if (!rawDate) return null;
+
+  let jsDate;
+
+  // Already JS Date (xlsx cellDates: true)
+  if (rawDate instanceof Date) {
+    jsDate = rawDate;
+  }
+  // Excel serial number
+  else if (typeof rawDate === "number") {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    jsDate = new Date(excelEpoch.getTime() + rawDate * 86400000);
+  }
+  // String fallback
+  else {
+    jsDate = new Date(rawDate);
+  }
+
+  if (isNaN(jsDate)) return null;
+
+  const y = jsDate.getUTCFullYear();
+  const m = String(jsDate.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jsDate.getUTCDate()).padStart(2, "0");
+
+  return `${y}-${m}-${d} 00:00:00:00`;
+};
+
+// ================= VALID ALARMS (REUSE SAME LIST) =================
+const VALID_ALARMS = [
+  "Power Supply DC Output Out of Range",
+  "Battery Power Unavailable",
+  "Loss of Power Supply Redundancy",
+  "Ethernet Link Fault",
+  "GNSS Antenna Fault",
+  "Board Hardware Fault",
+  "Board Powered Off",
+  "RF Unit Maintenance Link Negotiation Failure",
+  "BBU CPRI Optical Module Fault",
+  "BBU CPRI Interface Error",
+  "RF Unit Hardware Fault",
+  "Cell Unavailable",
+  "NE Is Disconnected",
+  "Mains Power Fail",
+];
+
+// ================= MAIN NOKIA PARSER =================
+export const parseNokiaData = (rows, kpiType, existingSiteCodes = []) => {
+  const parsed = [];
+  if (!rows?.length) return parsed;
+
+  console.group(`📡 Nokia Parser → ${kpiType}`);
+  console.log("Rows:", rows.length);
+
+  // ===================== ALARM LOGIC =====================
+  if (kpiType === "Alarm") {
+    const siteAlarmMap = {};
+
+    rows.forEach((row) => {
+      const alarmName = row["Alarm Name"];
+      const alarmSource = row["Alarm Source"] || "";
+
+      const siteCode = extractSiteCode(alarmSource);
+      if (!siteCode) return;
+
+      if (existingSiteCodes.length && !existingSiteCodes.includes(siteCode))
+        return;
+
+      if (!alarmName || !VALID_ALARMS.includes(alarmName)) return;
+
+      siteAlarmMap[siteCode] ??= {};
+      siteAlarmMap[siteCode][alarmName] ??= 0;
+      siteAlarmMap[siteCode][alarmName]++;
+    });
+
+    const sites =
+      existingSiteCodes.length > 0
+        ? existingSiteCodes
+        : Object.keys(siteAlarmMap);
+
+    sites.forEach((siteCode) => {
+      const alarms = siteAlarmMap[siteCode]
+        ? Object.entries(siteAlarmMap[siteCode])
+        : [];
+
+      parsed.push({
+        siteCode,
+        siteName: siteCode,
+        kpiType: "Alarm",
+        beginTime: "Alarm",
+        kpiValue: alarms.length
+          ? alarms.sort((a, b) => b[1] - a[1])[0][0]
+          : "Need BORAN analyses",
+      });
+    });
+
+    console.groupEnd();
+    return parsed;
+  }
+
+  // ================= NON-ALARM KPIs =================
+  rows.forEach((row) => {
+    let siteCol = "";
+    let valueCol = "";
+
+    switch (kpiType) {
+      case "2G":
+        siteCol = "BCF name";
+        valueCol = "TCH Availability Normal TRXs";
+        break;
+
+      case "3G":
+        siteCol = "WBTS name";
+        valueCol = "Grp_Cell_Availability";
+        break;
+
+      case "4G":
+        siteCol = "LNBTS name";
+        valueCol = "Cell Avail excl BLU";
+        break;
+
+      case "Voltage":
+        siteCol = "MRBTS name";
+        valueCol = "MIN_INPUT_VOLTAGE_IN_RF (M40003C0)";
+        break;
+
+      default:
+        return;
+    }
+
+    const siteName = row[siteCol];
+    if (!siteName) return;
+
+    const siteCode = extractSiteCode(siteName);
+    if (!siteCode) return;
+
+    if (existingSiteCodes.length && !existingSiteCodes.includes(siteCode))
+      return;
+
+    parsed.push({
+      siteCode,
+      siteName,
+      kpiType,
+      beginTime: formatNokiaDate(row["Period start time"]),
+      kpiValue:
+        row[valueCol] === undefined ||
+        row[valueCol] === null ||
+        row[valueCol] === ""
+          ? null
+          : Number(row[valueCol]),
+    });
+  });
+
+  console.groupEnd();
+  return parsed;
+};
