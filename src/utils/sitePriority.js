@@ -12,7 +12,7 @@
  * P2 → Degradation exists ONLY on the LAST DAY
  *      (no tech degraded for 2 consecutive days)
  *
- * P3 → No degradation in the last 3 days
+ * 0 → No degradation in the last 3 days
  */
 
 export const getSitePriority = (siteData, datesByKPI) => {

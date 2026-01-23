@@ -7,50 +7,27 @@ import siteMap from "./utils/sites_full.json";
 import { getSitePriority } from "./utils/sitePriority";
 import { getDomainAndPriority } from "./utils/domain";
 
-const STORAGE_META_KEY = "NOKIA_TABLE_META"; // metadata only
+const STORAGE_META_KEY = "NOKIA_TABLE_META";
 
 /* =====================================================
-   ✅ NOKIA STATUS LOGIC
+   ✅ NOKIA STATUS — SAME LOGIC AS HUAWEI (NO ALARMS)
    ===================================================== */
-const getNokiaStatus = (site) => {
-  const kpis = site.kpis || {};
-  const alarm = kpis.Alarm;
+const getSiteStatus = (site, datesByKPI, day = null) => {
+  const d2 = day || (datesByKPI["2G"] || []).slice(-1)[0];
+  const d3 = day || (datesByKPI["3G"] || []).slice(-1)[0];
+  const d4 = day || (datesByKPI["4G"] || []).slice(-1)[0];
 
-  const hasBadAvailability = (obj) =>
-    obj &&
-    Object.values(obj).some(
-      (v) => typeof v === "number" && v < 97
-    );
+  const v2 = site.kpis["2G"]?.[d2];
+  const v3 = site.kpis["3G"]?.[d3];
+  const v4 = site.kpis["4G"]?.[d4];
 
-  const hasZeroAvailability = (obj) =>
-    obj &&
-    Object.values(obj).some(
-      (v) => typeof v === "number" && v === 0
-    );
+  const values = [v2, v3, v4].map((v) =>
+    v === "-" || v == null ? 0 : Number(v)
+  );
 
-  // 🔴 DOWN
-  if (
-    alarm === "Mains Power Fail" ||
-    alarm === "Battery Power Unavailable" ||
-    hasZeroAvailability(kpis["2G"]) ||
-    hasZeroAvailability(kpis["3G"]) ||
-    hasZeroAvailability(kpis["4G"])
-  ) {
-    return "DOWN";
-  }
-
-  // 🟠 DEGRADED
-  if (
-    alarm ||
-    hasBadAvailability(kpis["2G"]) ||
-    hasBadAvailability(kpis["3G"]) ||
-    hasBadAvailability(kpis["4G"])
-  ) {
-    return "DEGRADED";
-  }
-
-  // 🟢 OK
-  return "OK";
+  if (values.every((v) => v === 0)) return "Down";
+  if (values.some((v) => v < 97)) return "Degraded";
+  return "Ok";
 };
 
 const NokiaTablePage = () => {
@@ -115,17 +92,17 @@ const NokiaTablePage = () => {
       groupedBySite[siteCode].kpis[kpi] ??= kpi === "Alarm" ? null : {};
 
       if (kpi === "Alarm") {
-        groupedBySite[siteCode].kpis[kpi] = kpiValue;
+        groupedBySite[siteCode].kpis[kpi] = kpiValue ?? "-";
       } else {
         groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue ?? "-";
       }
 
       const site = groupedBySite[siteCode];
 
-      // ✅ COMPUTED FIELDS
+      // ✅ SAME METADATA LOGIC AS HUAWEI
       site.priority = getSitePriority(site, datesByKPI);
       site.domain = getDomainAndPriority(site, datesByKPI).domain;
-      site.status = getNokiaStatus(site); // ⭐ FIXED
+      site.status = getSiteStatus(site, datesByKPI);
 
       const info = siteMap.find((s) => s.siteCode === siteCode) || {};
       site.topologyPower = info.topologyPower || "-";
@@ -172,6 +149,9 @@ const NokiaTablePage = () => {
         kpiTypes={kpiTypes}
         datesByKPI={datesByKPI}
         groupedBySite={filteredSites}
+        getSiteStatus={(site, day) =>
+          getSiteStatus(site, datesByKPI, day)
+        }
         setSelectedSite={setSelectedSite}
         setSelectedDay={setSelectedDay}
       />
