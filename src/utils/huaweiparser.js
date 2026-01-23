@@ -3,12 +3,14 @@ export const extractSiteCode = (value) => {
   if (!value) return "";
 
   const str = String(value);
+
   const match = str.match(
-    /(EXN|NRD|ADM|SUO|NRO|CTR|LIT|EST|OST|SUD)_(\d{3,4})/
+    /(EXN|NRD|ADM|SUO|NRO|CTR|LIT|EST|OST|SUD)_\d{3,4}/
   );
 
   return match ? match[0] : "";
 };
+
 
 // ================= DATE FORMATTER (HUAWEI SAFE) =================
 const formatHuaweiDate = (rawDate) => {
@@ -88,53 +90,47 @@ export const parseHuaweiData = (rows, kpiType, existingSiteCodes = []) => {
 
   // ===================== ALARM LOGIC (UNCHANGED) =====================
   if (kpiType === "Alarm") {
-    const siteAlarmMap = {};
+  const siteAlarmMap = {};
 
-    rows.forEach((row) => {
-      const rawSite =
-        row["Site ID"] ||
-        row["Site Name"] ||
-        row["NE Name"] ||
-        row["Managed Object"] ||
-        row["Object"] ||
-        "";
+  rows.forEach((row) => {
+    const rawSite =
+      row["Site ID"] ||
+      row["Site Name"] ||
+      row["NE Name"] ||
+      row["Managed Object"] ||
+      row["Object"] ||
+      "";
 
-      const alarmName = row["Alarm Name"];
-      const siteCode = extractSiteCode(rawSite);
+    const alarmName =
+      row["Alarm Name"] ||
+      row["Alarm"] ||
+      row["Alarm Description"];
 
-      if (!siteCode) return;
-      if (existingSiteCodes.length && !existingSiteCodes.includes(siteCode)) return;
-      if (!alarmName || !VALID_ALARMS.includes(alarmName)) return;
+    const siteCode = extractSiteCode(rawSite);
 
-      siteAlarmMap[siteCode] ??= {};
-      siteAlarmMap[siteCode][alarmName] ??= 0;
-      siteAlarmMap[siteCode][alarmName]++;
+    if (!siteCode || !alarmName) return;
+
+    siteAlarmMap[siteCode] ??= {};
+    siteAlarmMap[siteCode][alarmName] =
+      (siteAlarmMap[siteCode][alarmName] || 0) + 1;
+  });
+
+  Object.entries(siteAlarmMap).forEach(([siteCode, alarms]) => {
+    const topAlarm = Object.entries(alarms)
+      .sort((a, b) => b[1] - a[1])[0]?.[0];
+
+    parsed.push({
+      siteCode,
+      siteName: siteCode,
+      kpiType: "Alarm",
+      beginTime: "Alarm",
+      kpiValue: topAlarm || "No active alarm",
     });
+  });
 
-    const sites =
-      existingSiteCodes.length > 0
-        ? existingSiteCodes
-        : Object.keys(siteAlarmMap);
-
-    sites.forEach((siteCode) => {
-      const alarms = siteAlarmMap[siteCode]
-        ? Object.entries(siteAlarmMap[siteCode])
-        : [];
-
-      parsed.push({
-        siteCode,
-        siteName: siteCode,
-        kpiType: "Alarm",
-        beginTime: "Alarm",
-        kpiValue: alarms.length
-          ? alarms.sort((a, b) => b[1] - a[1])[0][0]
-          : "Need BORAN analyses",
-      });
-    });
-
-    console.groupEnd();
-    return parsed;
-  }
+  console.groupEnd();
+  return parsed;
+}
 
   // ================= NON-ALARM KPIs (FINAL FIX) =================
   rows.forEach((row) => {

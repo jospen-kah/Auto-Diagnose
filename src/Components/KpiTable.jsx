@@ -35,10 +35,11 @@ const KPITable = ({
       if (value >= 50) return "bg-yellow-400 text-black";
       return "bg-orange-500 text-white";
     }
-    if (kpi === "Voltage")
+    if (kpi === "Voltage") {
       return value < 45000
         ? "bg-orange-500 text-white"
         : "bg-green-500 text-white";
+    }
     return "";
   };
 
@@ -81,13 +82,13 @@ const KPITable = ({
       push(site.siteCode);
       push(site.siteName);
 
-      displayKPIs.forEach((kpi) => {
+      displayKPIs.forEach((kpi, i) => {
         datesByKPI[kpi].forEach((d) => {
           push(site.kpis[kpi]?.[d] ?? "-");
         });
+        if (i < displayKPIs.length - 1) push("");
       });
 
-      // ✅ Add Status, Priority, Domain, Topology Power
       push(getSiteStatus ? getSiteStatus(site) : "-");
       push(site.priority ?? "-");
       push(site.domain ?? "-");
@@ -123,7 +124,7 @@ const KPITable = ({
   }, [selectionMode, start, end]);
 
   /* ===============================
-     🧠 Cell handlers (MERGED STYLES)
+     🧠 Cell handlers
      =============================== */
   const cellHandlers = (r, c, extraClass = "") => ({
     onMouseDown: () => {
@@ -139,10 +140,9 @@ const KPITable = ({
     className: `
       border px-3 select-none
       ${extraClass}
-      ${
-        isSelected(r, c)
-          ? "ring-2 ring-red-500 ring-inset bg-red-500/20"
-          : ""
+      ${isSelected(r, c)
+        ? "ring-2 ring-red-500 ring-inset bg-red-500/20"
+        : ""
       }
     `,
   });
@@ -150,24 +150,43 @@ const KPITable = ({
   return (
     <div className="overflow-auto mx-4 border border-gray-700 rounded">
       <table className="min-w-max border-collapse text-sm">
-        <thead className="bg-gray-800">
-          <tr>
-            <th className="border px-3">#</th>
-            <th className="border px-3">Site Code</th>
-            <th className="border px-3">Site Name</th>
+        <thead>
+          {/* ===== KPI GROUP HEADERS ===== */}
+          <tr className="bg-gray-800">
+            <th rowSpan={2} className="border px-3">#</th>
+            <th rowSpan={2} className="border px-3">Site Code</th>
+            <th rowSpan={2} className="border px-3">Site Name</th>
 
-            {displayKPIs.map((kpi) =>
-              datesByKPI[kpi].map((d) => (
-                <th key={`${kpi}-${d}`} className="border px-3">
-                  {kpi} {d}
+            {displayKPIs.map((kpi, i) => (
+              <React.Fragment key={kpi}>
+                <th colSpan={datesByKPI[kpi].length} className="border px-3">
+                  {kpi}
                 </th>
-              ))
-            )}
+                {i < displayKPIs.length - 1 && (
+                  <th className="border-r-4 border-gray-900 bg-gray-900 w-3"></th>
+                )}
+              </React.Fragment>
+            ))}
 
-            <th className="border px-3">Status</th>
-            <th className="border px-3">Priority</th>
-            <th className="border px-3">Domain</th>
-            <th className="border px-3">Topology Power</th>
+            <th rowSpan={2} className="border px-3">Status</th>
+            <th rowSpan={2} className="border px-3">Priority</th>
+            <th rowSpan={2} className="border px-3">Domain</th>
+            <th rowSpan={2} className="border px-3">Topology Power</th>
+          </tr>
+
+          <tr className="bg-gray-700">
+            {displayKPIs.map((kpi, i) => (
+              <React.Fragment key={kpi}>
+                {datesByKPI[kpi].map((d) => (
+                  <th key={`${kpi}-${d}`} className="border px-3">
+                    {d}
+                  </th>
+                ))}
+                {i < displayKPIs.length - 1 && (
+                  <th className="border-r-4 border-gray-900 bg-gray-900 w-3"></th>
+                )}
+              </React.Fragment>
+            ))}
           </tr>
         </thead>
 
@@ -180,56 +199,62 @@ const KPITable = ({
                 <td {...cellHandlers(rIdx, cIdx++)}>{rIdx + 1}</td>
 
                 <td
-                  {...cellHandlers(
-                    rIdx,
-                    cIdx++,
-                    "cursor-pointer text-blue-400"
-                  )}
+                  {...cellHandlers(rIdx, cIdx++, "cursor-pointer text-blue-400")}
                   onClick={() => !dragging && setSelectedSite(site)}
                 >
                   {site.siteCode}
                 </td>
 
                 <td
-                  {...cellHandlers(
-                    rIdx,
-                    cIdx++,
-                    "cursor-pointer text-blue-400"
-                  )}
+                  {...cellHandlers(rIdx, cIdx++, "cursor-pointer text-blue-400")}
                   onClick={() => !dragging && setSelectedSite(site)}
                 >
                   {site.siteName}
                 </td>
 
-                {displayKPIs.map((kpi) =>
-                  datesByKPI[kpi].map((d) => {
-                    const v = site.kpis[kpi]?.[d] ?? "-";
-                    const col = cIdx++;
-
-                    return (
+                {displayKPIs.map((kpi, i) => (
+                  <React.Fragment key={`${site.siteCode}-${kpi}`}>
+                    {kpi === "Alarm" ? (
                       <td
-                        key={`${site.siteCode}-${kpi}-${d}`}
                         {...cellHandlers(
                           rIdx,
-                          col,
-                          `text-center ${
-                            selectionMode
-                              ? "cursor-crosshair"
-                              : "cursor-pointer"
-                          } ${getCellColor(kpi, v)}`
+                          cIdx++,
+                          "text-center font-semibold bg-red-600/20"
                         )}
-                        onClick={() =>
-                          !dragging &&
-                          (setSelectedSite(site), setSelectedDay(d))
-                        }
                       >
-                        {v}
+                        {site.kpis.Alarm ?? "-"}
                       </td>
-                    );
-                  })
-                )}
+                    ) : (
+                      datesByKPI[kpi].map((d) => {
+                        const v = site.kpis[kpi]?.[d] ?? "-";
+                        const col = cIdx++;
+                        return (
+                          <td
+                            key={`${site.siteCode}-${kpi}-${d}`}
+                            {...cellHandlers(
+                              rIdx,
+                              col,
+                              `text-center ${selectionMode ? "cursor-crosshair" : "cursor-pointer"
+                              } ${getCellColor(kpi, v)}`
+                            )}
+                            onClick={() =>
+                              !dragging && (setSelectedSite(site), setSelectedDay(d))
+                            }
+                          >
+                            {v}
+                          </td>
+                        );
+                      })
+                    )}
 
-                {/* ✅ Status, Priority, Domain, Topology Power */}
+                    {/* vertical separator */}
+                    {i < displayKPIs.length - 1 && (
+                      <td {...cellHandlers(rIdx, cIdx++, "bg-gray-900")}></td>
+                    )}
+                  </React.Fragment>
+                ))}
+
+
                 <td {...cellHandlers(rIdx, cIdx++)}>
                   {getSiteStatus ? getSiteStatus(site) : "-"}
                 </td>

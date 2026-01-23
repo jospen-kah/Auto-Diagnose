@@ -48,9 +48,9 @@ const PageHeading = () => {
   const location = useLocation();
   let heading = '';
 
-  if (location.pathname.startsWith('/zte')) heading = 'ZTE KPI Performance';
-  else if (location.pathname.startsWith('/huawei')) heading = 'Huawei KPI Performance';
-  else if (location.pathname.startsWith('/nokia')) heading = 'Nokia KPI Performance';
+  if (location.pathname.startsWith('/zte')) heading = 'ZTE Auto Diagnose';
+  else if (location.pathname.startsWith('/huawei')) heading = 'Huawei Auto Diagnose';
+  else if (location.pathname.startsWith('/nokia')) heading = 'Nokia Auto Diagnose';
   else heading = 'KPI Dashboard';
 
   return (
@@ -85,7 +85,7 @@ const App = () => {
 
         {/* Footer */}
         <footer className="bg-slate-800 text-gray-300 text-center py-4 mt-8 rounded-t-lg">
-          &copy; {new Date().getFullYear()} by MSP/OCM Service Desk, Autodiagnose
+          &copy; {new Date().getFullYear()} by MSP/OCM Service Desk, Autodiagnose (V1.0)
         </footer>
       </div>
     </Router>

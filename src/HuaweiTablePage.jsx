@@ -28,7 +28,7 @@ const HuaweiTablePage = () => {
       setRawData(location.state.data);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(location.state.data));
-      } catch { }
+      } catch {}
     } else {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) setRawData(JSON.parse(saved));
@@ -65,25 +65,29 @@ const HuaweiTablePage = () => {
 
   /* ================= GROUP BY SITE ================= */
   const groupedBySite = {};
+
   Object.keys(rawData).forEach((kpi) => {
     (rawData[kpi] || []).forEach(({ siteCode, siteName, beginTime, kpiValue }) => {
       if (!siteCode) return;
 
       groupedBySite[siteCode] ??= { siteCode, siteName, kpis: {} };
-      groupedBySite[siteCode].kpis[kpi] ??= kpi === "Alarm" ? null : {};
 
-      if (kpi === "Voltage" && kpiValue != null) {
-        groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue * 1000;
-      } else if (kpi === "Packet Loss" && kpiValue != null) {
-        groupedBySite[siteCode].kpis[kpi][beginTime] = `${kpiValue}%`;
-      } else if (kpi === "Alarm") {
-        groupedBySite[siteCode].kpis[kpi] = kpiValue;
+      // ✅ FIX: Alarm is NOT an object
+      if (kpi === "Alarm") {
+        groupedBySite[siteCode].kpis["Alarm"] = kpiValue ?? "-";
       } else {
-        groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue ?? "-";
+        groupedBySite[siteCode].kpis[kpi] ??= {};
+
+        if (kpi === "Voltage" && kpiValue != null) {
+          groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue * 1000;
+        } else if (kpi === "Packet Loss" && kpiValue != null) {
+          groupedBySite[siteCode].kpis[kpi][beginTime] = `${kpiValue}%`;
+        } else {
+          groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue ?? "-";
+        }
       }
 
-
-      // Assign priority, domain & topology power
+      // ================= SITE METADATA =================
       const site = groupedBySite[siteCode];
 
       site.priority = getSitePriority(site, datesByKPI);
@@ -91,31 +95,17 @@ const HuaweiTablePage = () => {
       const { domain } = getDomainAndPriority(site, datesByKPI);
       site.domain = domain;
 
-      // ✅ ADD THIS (missing piece)
       const siteInfo = siteMap.find((s) => s.siteCode === siteCode) || {};
       site.topologyPower = siteInfo.topologyPower || "-";
 
-      // ✅ Comment (already correct)
       site.comment =
         domain === "RAN"
           ? "BO Analysis needed"
           : domain === "Power"
-            ? "Verify the alimentation chain"
-            : domain === "TX"
-              ? "verifier l'etat de congestion du lien portant le site; verifier si le site n'est pas impacté par un probleme d energie sur le site porteur; verifier l'etat des canaux et des alarmes sur la chaine de transmission"
-              : "-";
-
-
-      // ✅ ADD COMMENT (important for shared SiteAnalysisModal)
-      site.comment =
-        domain === "RAN"
-          ? "BO Analysis needed"
-          : domain === "Power"
-            ? "Verify the alimentation chain"
-            : domain === "TX"
-              ? "verifier l'etat de congestion du lien portant le site; verifier si le site n'est pas impacté par un probleme d energie sur le site porteur; verifier l'etat des canaux et des alarmes sur la chaine de transmission"
-              : "-";
-
+          ? "Verify the alimentation chain"
+          : domain === "TX"
+          ? "verifier l'etat de congestion du lien portant le site; verifier si le site n'est pas impacté par un probleme d energie sur le site porteur; verifier l'etat des canaux et des alarmes sur la chaine de transmission"
+          : "-";
     });
   });
 
@@ -129,7 +119,9 @@ const HuaweiTablePage = () => {
     const v3 = site.kpis["3G"]?.[d3];
     const v4 = site.kpis["4G"]?.[d4];
 
-    const values = [v2, v3, v4].map((v) => (v === "-" || v == null ? 0 : Number(v)));
+    const values = [v2, v3, v4].map((v) =>
+      v === "-" || v == null ? 0 : Number(v)
+    );
 
     if (values.every((v) => v === 0)) return "Down";
     if (values.some((v) => v < 97)) return "Degraded";
@@ -163,7 +155,6 @@ const HuaweiTablePage = () => {
         Huawei KPI Performance Report
       </h2>
 
-      {/* Filters Component */}
       <Filters
         search={search}
         setSearch={setSearch}
@@ -175,17 +166,15 @@ const HuaweiTablePage = () => {
         setDomainFilter={setDomainFilter}
       />
 
-      {/* KPI Table Component */}
       <KPITable
         kpiTypes={kpiTypes}
         datesByKPI={datesByKPI}
-        groupedBySite={filteredSites} // filtered data
+        groupedBySite={filteredSites}
         getSiteStatus={getSiteStatus}
         setSelectedSite={setSelectedSite}
         setSelectedDay={setSelectedDay}
       />
 
-      {/* Site Analysis Modal Component */}
       {selectedSite && (
         <SiteAnalysisModal
           selectedSite={selectedSite}
