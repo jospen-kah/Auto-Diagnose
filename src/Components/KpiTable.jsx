@@ -13,9 +13,6 @@ const KPITable = ({
 
   const sites = Object.values(groupedBySite);
 
-  /* ===============================
-     🔹 Selection State
-     =============================== */
   const [selectionMode, setSelectionMode] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [start, setStart] = useState(null);
@@ -93,6 +90,7 @@ const KPITable = ({
       push(site.priority ?? "-");
       push(site.domain ?? "-");
       push(site.topologyPower ?? "-");
+      push(site.technoImpacted ?? "-");
 
       rows.push(row.join("\t"));
     }
@@ -123,9 +121,6 @@ const KPITable = ({
     return () => window.removeEventListener("keydown", handler);
   }, [selectionMode, start, end]);
 
-  /* ===============================
-     🧠 Cell handlers
-     =============================== */
   const cellHandlers = (r, c, extraClass = "") => ({
     onMouseDown: () => {
       setSelectionMode(true);
@@ -151,7 +146,6 @@ const KPITable = ({
     <div className="overflow-auto mx-4 border border-gray-700 rounded">
       <table className="min-w-max border-collapse text-sm">
         <thead>
-          {/* ===== KPI GROUP HEADERS ===== */}
           <tr className="bg-gray-800">
             <th rowSpan={2} className="border px-3">#</th>
             <th rowSpan={2} className="border px-3">Site Code</th>
@@ -172,6 +166,7 @@ const KPITable = ({
             <th rowSpan={2} className="border px-3">Priority</th>
             <th rowSpan={2} className="border px-3">Domain</th>
             <th rowSpan={2} className="border px-3">Topology Power</th>
+            <th rowSpan={2} className="border px-3">Techno Impacted</th>
           </tr>
 
           <tr className="bg-gray-700">
@@ -193,6 +188,19 @@ const KPITable = ({
         <tbody>
           {sites.map((site, rIdx) => {
             let cIdx = 0;
+
+            /* ===============================
+               🆕 Techno Impacted logic
+               =============================== */
+            const impacted = [];
+            ["2G", "3G", "4G"].forEach((tech) => {
+              const lastDay = datesByKPI[tech]?.slice(-1)[0];
+              const v = site.kpis[tech]?.[lastDay];
+              if (v === "-" || v == null || Number(v) < 97) {
+                impacted.push(tech);
+              }
+            });
+            site.technoImpacted = impacted.length ? impacted.join(", ") : "-";
 
             return (
               <tr key={site.siteCode} className="hover:bg-gray-800">
@@ -247,13 +255,11 @@ const KPITable = ({
                       })
                     )}
 
-                    {/* vertical separator */}
                     {i < displayKPIs.length - 1 && (
                       <td {...cellHandlers(rIdx, cIdx++, "bg-gray-900")}></td>
                     )}
                   </React.Fragment>
                 ))}
-
 
                 <td {...cellHandlers(rIdx, cIdx++)}>
                   {getSiteStatus ? getSiteStatus(site) : "-"}
@@ -262,6 +268,9 @@ const KPITable = ({
                 <td {...cellHandlers(rIdx, cIdx++)}>{site.domain ?? "-"}</td>
                 <td {...cellHandlers(rIdx, cIdx++)}>
                   {site.topologyPower ?? "-"}
+                </td>
+                <td {...cellHandlers(rIdx, cIdx++)}>
+                  {site.technoImpacted}
                 </td>
               </tr>
             );
