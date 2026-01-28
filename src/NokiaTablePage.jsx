@@ -12,23 +12,48 @@ const STORAGE_META_KEY = "NOKIA_TABLE_META";
 /* =====================================================
    ✅ NOKIA STATUS — SAME LOGIC AS HUAWEI (NO ALARMS)
    ===================================================== */
-const getSiteStatus = (site, datesByKPI, day = null) => {
-  const d2 = day || (datesByKPI["2G"] || []).slice(-1)[0];
-  const d3 = day || (datesByKPI["3G"] || []).slice(-1)[0];
-  const d4 = day || (datesByKPI["4G"] || []).slice(-1)[0];
+const getSiteStatus = (site, datesByKPI) => {
+  const d2 = (datesByKPI["2G"] || []).slice(-1)[0];
+  const d3 = (datesByKPI["3G"] || []).slice(-1)[0];
+  const d4 = (datesByKPI["4G"] || []).slice(-1)[0];
 
-  const v2 = site.kpis["2G"]?.[d2];
-  const v3 = site.kpis["3G"]?.[d3];
-  const v4 = site.kpis["4G"]?.[d4];
+  const raw = [
+    site.kpis["2G"]?.[d2],
+    site.kpis["3G"]?.[d3],
+    site.kpis["4G"]?.[d4],
+  ];
 
-  const values = [v2, v3, v4].map((v) =>
-    v === "-" || v == null ? 0 : Number(v)
-  );
+  const values = raw.map(v => {
+    if (v === "-" || v == null || v === "NaN" || v === "NAN") return NaN;
+    return Number(v);
+  });
 
-  if (values.every((v) => v === 0)) return "Down";
-  if (values.some((v) => v < 97)) return "Degraded";
-  return "Ok";
+  const hasNaN = values.some(v => Number.isNaN(v));
+  const allZeroOrDash = values.every(v => isNaN(v) || v === 0);
+
+  // ✅ DOWN
+  if (hasNaN && allZeroOrDash) return "Down";       // NaN + 0/- scenario
+  if (allZeroOrDash) return "Down";                // all 0 or -
+  if (hasNaN && !values.some(v => !Number.isNaN(v) && v > 0)) return "Down"; // only NaN + 0/-
+
+  // ✅ DEGRADED
+  // At least one tech >0 and <97 OR at least one tech >0 and rest are 0/- (worst case)
+  const someBetween0And97 = values.some(v => !isNaN(v) && v > 0 && v < 97);
+  const someAbove0RestZeroOrDash = values.some(v => !isNaN(v) && v > 0) && values.some(v => v === 0 || isNaN(v));
+
+  if (someBetween0And97 || someAbove0RestZeroOrDash) return "Degraded";
+
+  // ✅ OK
+  // At least one tech >97 and the rest are "-" or >97
+  const someAbove97 = values.some(v => !isNaN(v) && v > 97);
+  const restAreDashOrAbove97 = values.every(v => isNaN(v) || v > 97);
+
+  if (someAbove97 && restAreDashOrAbove97) return "Ok";
+
+  // fallback (should not happen)
+  return "Degraded";
 };
+
 
 const NokiaTablePage = () => {
   const location = useLocation();
@@ -99,14 +124,18 @@ const NokiaTablePage = () => {
 
       const site = groupedBySite[siteCode];
 
-      // ✅ SAME METADATA LOGIC AS HUAWEI
+      // ✅ METADATA (NO STATUS HERE)
       site.priority = getSitePriority(site, datesByKPI);
       site.domain = getDomainAndPriority(site, datesByKPI).domain;
-      site.status = getSiteStatus(site, datesByKPI);
 
       const info = siteMap.find((s) => s.siteCode === siteCode) || {};
       site.topologyPower = info.topologyPower || "-";
     });
+  });
+
+  /* ================= FINAL STATUS PASS (IMPORTANT) ================= */
+  Object.values(groupedBySite).forEach((site) => {
+    site.status = getSiteStatus(site, datesByKPI);
   });
 
   /* ================= FILTERING ================= */

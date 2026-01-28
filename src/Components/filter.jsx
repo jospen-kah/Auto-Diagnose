@@ -1,4 +1,4 @@
-  // src/components/Filters.jsx
+// src/components/Filters.jsx
 import React from "react";
 
 const Filters = ({
@@ -36,6 +36,7 @@ const Filters = ({
         <option value="Ok">Ok</option>
         <option value="Degraded">Degraded</option>
         <option value="Down">Down</option>
+       
       </select>
 
       <select
