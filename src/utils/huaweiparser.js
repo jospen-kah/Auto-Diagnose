@@ -151,7 +151,7 @@ export const parseHuaweiData = (rows, kpiType, existingSiteCodes = []) => {
         valueCol = "4G Cell Availability (Excluding manual)";
         break;
       case "Voltage":
-        siteCol = "eGBTS";
+        siteCol = "NodeB";
         valueCol = "VS.RADIOEQM.InputVoltage.Min(V)";
         break;
       case "Packet Loss":
