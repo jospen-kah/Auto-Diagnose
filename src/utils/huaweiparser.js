@@ -143,7 +143,7 @@ export const parseHuaweiData = (rows, kpiType, existingSiteCodes = []) => {
         valueCol = "TR373:Cell Availability(%)";
         break;
       case "3G":
-        siteCol = "NODEBNAME";
+        siteCol = "NodeB";
         valueCol = "3G Availability (Group)";
         break;
       case "4G":
