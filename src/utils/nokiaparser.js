@@ -145,7 +145,7 @@ export const parseNokiaData = (rows, kpiType, existingSiteCodes = []) => {
 
       case "3G":
         siteCol = "WBTS name";
-        valueCol = "Grp_Cell_Availability";
+        valueCol = "Cell Availability, excluding blocked by user state (BLU)";
         break;
 
       case "4G":

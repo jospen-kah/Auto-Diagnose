@@ -2,42 +2,37 @@ export const getDomainAndPriority = (site, datesByKPI) => {
   const techs = ["2G", "3G", "4G"];
   const lastDay = datesByKPI["2G"]?.slice(-1)[0];
 
-  /* ================= GET DEGRADED TECHS ================= */
-  const degradedTechs = techs.filter((t) => {
+  // Get tech status for last day
+  const techStatus = techs.map((t) => {
     const v = site.kpis[t]?.[lastDay];
-    return v !== null && v !== undefined && v !== "-" && Number(v) < 97;
+    if (v === null || v === undefined || v === "-" || v === 0) return "OK"; // Treat 0 or missing as OK for degradation
+    return Number(v) < 97 ? "degraded" : "OK";
   });
 
+  const degradedTechs = techStatus.filter((s) => s === "degraded");
   const anyTechDegraded = degradedTechs.length > 0;
+  const allTechsDegraded = degradedTechs.length === techs.length;
 
-  const allTechsDegraded = techs.every((t) => {
-    const v = site.kpis[t]?.[lastDay];
-    return v !== null && v !== undefined && v !== "-" && Number(v) < 97;
-  });
-
-  const voltage = site.kpis["Voltage"]?.[lastDay];
+  const voltage = site.kpis["Voltage"]?.[lastDay] ?? 0;
   const packetLoss = parseFloat(
-    (site.kpis["Packet Loss"]?.[lastDay] || "").replace("%", "")
+    (site.kpis["Packet Loss"]?.[lastDay] || "0").toString().replace("%", "")
   );
 
-  /* ================= TX (STRONGEST CONDITION) ================= */
+  // ================= TX =================
   if (allTechsDegraded) {
     return { domain: "TX", priority: "P0" };
   }
 
-  /* ================= POWER ================= */
-  if (anyTechDegraded && voltage < 45000) {
-    if (!isNaN(packetLoss) && packetLoss >= 2) {
-      return { domain: "Power", priority: "P0" };
-    }
-    return { domain: "Power", priority: "P1" };
+  // ================= Power =================
+  if (anyTechDegraded && voltage > 0 && voltage < 45000) {
+    return { domain: "Power", priority: "P0" };
   }
 
-  /* ================= RAN (DEFAULT FOR DEGRADED) ================= */
+  // ================= RAN =================
   if (anyTechDegraded) {
     return { domain: "RAN", priority: "P2" };
   }
 
-  /* ================= OK ================= */
+  // ================= N/A =================
   return { domain: "N/A", priority: "OK" };
 };
