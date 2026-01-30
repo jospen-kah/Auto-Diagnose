@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const KPITable = ({
   kpiTypes,
@@ -13,7 +15,7 @@ const KPITable = ({
 
   /* ===============================
      🔑 SOURCE OF TRUTH
-     =============================== */
+  =============================== */
   const allSites = Object.values(groupedBySite);
 
   const [visibleSites, setVisibleSites] = useState(allSites);
@@ -26,7 +28,7 @@ const KPITable = ({
 
   /* ===============================
      🧠 Selection (drag / copy)
-     =============================== */
+  =============================== */
   const [selectionMode, setSelectionMode] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [start, setStart] = useState(null);
@@ -38,7 +40,7 @@ const KPITable = ({
 
   /* ===============================
      🎨 KPI Coloring
-     =============================== */
+  =============================== */
   const getCellColor = (kpi, value) => {
     if (value === "-" || value == null) return "";
     if (["2G", "3G", "4G"].includes(kpi)) {
@@ -47,16 +49,14 @@ const KPITable = ({
       return "bg-orange-500 text-white";
     }
     if (kpi === "Voltage") {
-      return value < 45000
-        ? "bg-orange-500 text-white"
-        : "bg-green-500 text-white";
+      return value < 45000 ? "bg-orange-500 text-white" : "bg-green-500 text-white";
     }
     return "";
   };
 
   /* ===============================
      🟥 Selection logic
-     =============================== */
+  =============================== */
   const isSelected = (r, c) => {
     if (!start || !end) return false;
     const minR = Math.min(start.r, end.r);
@@ -68,7 +68,7 @@ const KPITable = ({
 
   /* ===============================
      📋 Copy selected cells
-     =============================== */
+  =============================== */
   const copySelection = () => {
     if (!start || !end) return;
 
@@ -82,7 +82,6 @@ const KPITable = ({
     const getTechnoImpactedLocal = (site) => {
       const techs = ["2G", "3G", "4G"];
       const impacted = [];
-
       techs.forEach((tech) => {
         const dates = datesByKPI[tech];
         if (!dates?.length) return;
@@ -95,13 +94,11 @@ const KPITable = ({
         const v = Number(raw);
         if (v > 0 && v < 97) impacted.push(tech);
       });
-
       return impacted.length ? impacted.join(", ") : "-";
     };
 
     for (let r = minR; r <= maxR; r++) {
       const site = visibleSites[r];
-
       const fullRow = [];
 
       // Checkbox column (ignored visually, but must exist for index alignment)
@@ -134,18 +131,15 @@ const KPITable = ({
       fullRow.push(getTechnoImpactedLocal(site));
 
       // ✅ slice EXACT selected columns
-      rows.push(
-        fullRow.slice(minC+1, maxC + 2).join("\t")
-      );
+      rows.push(fullRow.slice(minC + 1, maxC + 2).join("\t"));
     }
 
     navigator.clipboard.writeText(rows.join("\n"));
   };
 
-
   /* ===============================
      ⌨ Keyboard shortcuts
-     =============================== */
+  =============================== */
   useEffect(() => {
     const handler = (e) => {
       if (!selectionMode) return;
@@ -175,23 +169,24 @@ const KPITable = ({
     },
     onMouseEnter: () => dragging && setEnd({ r, c }),
     onMouseUp: () => setDragging(false),
-    className: `
-      border px-3 select-none
-      ${extra}
-      ${isSelected(r, c) ? "ring-2 ring-red-500 ring-inset bg-red-500/20" : ""}
-    `,
+    className: `border px-3 select-none ${extra} ${
+      isSelected(r, c) ? "ring-2 ring-red-500 ring-inset bg-red-500/20" : ""
+    }`,
   });
 
   /* ===============================
-     ✅ BUTTON ACTIONS (ONLY ADDITION)
-     =============================== */
+     ✅ BUTTON ACTIONS
+  =============================== */
   const showSelectedOnly = () => {
     const selected = Object.keys(tickedSites).filter((k) => tickedSites[k]);
     if (!selected.length) return;
+    setVisibleSites(allSites.filter((s) => selected.includes(s.siteCode)));
+  };
 
-    setVisibleSites(
-      allSites.filter((s) => selected.includes(s.siteCode))
-    );
+  const removeSelected = () => {
+    const selected = Object.keys(tickedSites).filter((k) => tickedSites[k]);
+    if (!selected.length) return;
+    setVisibleSites((prev) => prev.filter((s) => !selected.includes(s.siteCode)));
   };
 
   const clearFilter = () => {
@@ -199,9 +194,74 @@ const KPITable = ({
     setTickedSites({});
   };
 
+  const toggleSelectAll = (e) => {
+    const checked = e.target.checked;
+    const newTicks = {};
+    allSites.forEach((s) => {
+      newTicks[s.siteCode] = checked;
+    });
+    setTickedSites(newTicks);
+  };
+
+  /* ===============================
+     📤 EXPORT
+  =============================== */
+  const exportToExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const wsData = [];
+
+    /* ===== HEADER ===== */
+    const header = [
+      "#",
+      "Site Code",
+      "Site Name",
+      ...displayKPIs.flatMap((k) =>
+        k === "Alarm" ? ["Alarm"] : datesByKPI[k]?.map((d) => `${k} ${d}`) || []
+      ),
+      "Status",
+      "Priority",
+      "Domain",
+      "Topology Power",
+      "Techno Impacted",
+    ];
+
+    wsData.push(header);
+
+    /* ===== ROWS (FILTERED ONLY) ===== */
+    visibleSites.forEach((site, rIdx) => {
+      const row = [rIdx + 1, site.siteCode, site.siteName];
+
+      displayKPIs.forEach((kpi) => {
+        if (kpi === "Alarm") {
+          row.push(site.kpis.Alarm ?? "-");
+        } else {
+          datesByKPI[kpi]?.forEach((d) => row.push(site.kpis?.[kpi]?.[d] ?? "-"));
+        }
+      });
+
+      row.push(
+        getSiteStatus ? getSiteStatus(site) : "-",
+        site.priority ?? "-",
+        site.domain ?? "-",
+        site.topologyPower ?? "-",
+        "-"
+      );
+
+      wsData.push(row);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = header.map(() => ({ wch: 18 }));
+
+    XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
+
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array", cellStyles: true });
+    saveAs(new Blob([buffer], { type: "application/octet-stream" }), "KPI_Report.xlsx");
+  };
+
   /* ===============================
      🧾 RENDER
-     =============================== */
+  =============================== */
   return (
     <>
       {/* ACTION BUTTONS */}
@@ -214,6 +274,13 @@ const KPITable = ({
         </button>
 
         <button
+          className="px-4 py-2 bg-red-600 text-white rounded"
+          onClick={removeSelected}
+        >
+          Remove Selected
+        </button>
+
+        <button
           className="px-4 py-2 bg-gray-600 text-white rounded"
           onClick={clearFilter}
         >
@@ -222,41 +289,73 @@ const KPITable = ({
       </div>
 
       <div className="overflow-auto mx-4 border border-gray-700 rounded">
+        <div className="flex justify-end mb-2 px-4">
+          <button
+            onClick={exportToExcel}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            Export to Excel
+          </button>
+        </div>
+
         <table className="min-w-max border-collapse text-sm">
           <thead>
             <tr className="bg-gray-800">
-              <th rowSpan={2} className="border px-2">✓</th>
-              <th rowSpan={2} className="border px-3">#</th>
-              <th rowSpan={2} className="border px-3">Site Code</th>
-              <th rowSpan={2} className="border px-3">Site Name</th>
+              <th rowSpan={2} className="border px-2 text-center">
+                <input
+                  type="checkbox"
+                  checked={
+                    Object.keys(tickedSites).length === allSites.length &&
+                    allSites.every((s) => tickedSites[s.siteCode])
+                  }
+                  onChange={toggleSelectAll}
+                />
+              </th>
+              <th rowSpan={2} className="border px-3">
+                #
+              </th>
+              <th rowSpan={2} className="border px-3">
+                Site Code
+              </th>
+              <th rowSpan={2} className="border px-3">
+                Site Name
+              </th>
 
               {displayKPIs.map((kpi, i) => (
                 <React.Fragment key={kpi}>
                   <th colSpan={datesByKPI[kpi].length} className="border px-3">
                     {kpi}
                   </th>
-                  {i < displayKPIs.length - 1 && (
-                    <th className="bg-gray-900 w-3"></th>
-                  )}
+                  {i < displayKPIs.length - 1 && <th className="bg-gray-900 w-3"></th>}
                 </React.Fragment>
               ))}
 
-              <th rowSpan={2} className="border px-3">Status</th>
-              <th rowSpan={2} className="border px-3">Priority</th>
-              <th rowSpan={2} className="border px-3">Domain</th>
-              <th rowSpan={2} className="border px-3">Topology Power</th>
-              <th rowSpan={2} className="border px-3">Techno Impacted</th>
+              <th rowSpan={2} className="border px-3">
+                Status
+              </th>
+              <th rowSpan={2} className="border px-3">
+                Priority
+              </th>
+              <th rowSpan={2} className="border px-3">
+                Domain
+              </th>
+              <th rowSpan={2} className="border px-3">
+                Topology Power
+              </th>
+              <th rowSpan={2} className="border px-3">
+                Techno Impacted
+              </th>
             </tr>
 
             <tr className="bg-gray-700">
               {displayKPIs.map((kpi, i) => (
                 <React.Fragment key={kpi}>
                   {datesByKPI[kpi].map((d) => (
-                    <th key={d} className="border px-3">{d}</th>
+                    <th key={d} className="border px-3">
+                      {d}
+                    </th>
                   ))}
-                  {i < displayKPIs.length - 1 && (
-                    <th className="bg-gray-900 w-3"></th>
-                  )}
+                  {i < displayKPIs.length - 1 && <th className="bg-gray-900 w-3"></th>}
                 </React.Fragment>
               ))}
             </tr>
@@ -278,13 +377,9 @@ const KPITable = ({
                   const raw = site.kpis?.[tech]?.[lastDate];
 
                   const value =
-                    raw === "-" || raw == null || raw === "NaN"
-                      ? NaN
-                      : Number(raw);
+                    raw === "-" || raw == null || raw === "NaN" ? NaN : Number(raw);
 
-                  if (value > 0 && value < 97) {
-                    impacted.push(tech);
-                  }
+                  if (value > 0 && value < 97) impacted.push(tech);
                 });
 
                 return impacted.join(", ") || "-";
@@ -346,8 +441,7 @@ const KPITable = ({
                                 `text-center ${getCellColor(kpi, v)}`
                               )}
                               onClick={() =>
-                                !dragging &&
-                                (setSelectedSite(site), setSelectedDay(d))
+                                !dragging && (setSelectedSite(site), setSelectedDay(d))
                               }
                             >
                               {v}
@@ -358,7 +452,11 @@ const KPITable = ({
 
                       {i < displayKPIs.length - 1 && (
                         <td
-                          {...cellHandlers(rIdx, cIdx++, "bg-gray-900 pointer-events-none")}
+                          {...cellHandlers(
+                            rIdx,
+                            cIdx++,
+                            "bg-gray-900 pointer-events-none"
+                          )}
                         />
                       )}
                     </React.Fragment>
@@ -368,13 +466,8 @@ const KPITable = ({
                   </td>
                   <td {...cellHandlers(rIdx, cIdx++)}>{site.priority ?? "-"}</td>
                   <td {...cellHandlers(rIdx, cIdx++)}>{site.domain ?? "-"}</td>
-                  <td {...cellHandlers(rIdx, cIdx++)}>
-                    {site.topologyPower ?? "-"}
-                  </td>
-                  <td {...cellHandlers(rIdx, cIdx++)}>
-                    {getTechnoImpacted(site)}
-                  </td>
-
+                  <td {...cellHandlers(rIdx, cIdx++)}>{site.topologyPower ?? "-"}</td>
+                  <td {...cellHandlers(rIdx, cIdx++)}>{getTechnoImpacted(site)}</td>
                 </tr>
               );
             })}

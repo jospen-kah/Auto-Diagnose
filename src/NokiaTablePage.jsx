@@ -101,9 +101,15 @@ const NokiaTablePage = () => {
   kpiTypes.forEach((kpi) => {
     const rows = rawData[kpi] || [];
     datesByKPI[kpi] =
-      kpi === "Alarm"
-        ? ["Alarm"]
-        : [...new Set(rows.map((r) => r.beginTime))].slice(-7);
+  kpi === "Alarm"
+    ? ["Alarm"]
+    : [...new Set(rows.map(r => r.beginTime))]
+        .sort((a, b) => {
+          const [am, ad, ay] = a.split(".");
+          const [bm, bd, by] = b.split(".");
+          return new Date(`${ay}-${am}-${ad}`) - new Date(`${by}-${bm}-${bd}`);
+        })
+        .slice(-7);
   });
 
   /* ================= GROUP BY SITE ================= */
