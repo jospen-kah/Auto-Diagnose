@@ -1,8 +1,8 @@
-  import React, { useEffect, useState } from "react";
-  import * as XLSX from "xlsx";
-  import { saveAs } from "file-saver";
+import React, { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
-  const KPITable = ({
+const KPITable = ({
     kpiTypes,
     datesByKPI,
     groupedBySite,
@@ -10,7 +10,7 @@
     setSelectedSite,
     setSelectedDay,
     showAlarms = true,
-  }) => {
+}) => {
     if (!groupedBySite) return null;
 
     /* ===============================
@@ -23,7 +23,7 @@
 
     /* Reset when data reloads */
     useEffect(() => {
-      setVisibleSites(allSites);
+        setVisibleSites(allSites);
     }, [groupedBySite]);
 
     /* ===============================
@@ -35,113 +35,113 @@
     const [end, setEnd] = useState(null);
 
     const displayKPIs = showAlarms
-      ? kpiTypes
-      : kpiTypes.filter((k) => k !== "Alarm");
+        ? kpiTypes
+        : kpiTypes.filter((k) => k !== "Alarm");
 
     /* ===============================
       🎨 KPI Coloring
       =============================== */
     const getCellColor = (kpi, value) => {
-      if (value === "-" || value == null) return "";
-      if (["2G", "3G", "4G"].includes(kpi)) {
-        if (value > 97) return "bg-green-500 text-white";
-        if (value > 0) return "bg-yellow-400 text-black";
-        return "bg-orange-500 text-white";
-      }
-      if (kpi === "Voltage") {
-        return value < 45000
-          ? "bg-orange-500 text-white"
-          : "bg-green-500 text-white";
-      }
-      return "";
+        if (value === "-" || value == null) return "";
+        if (["2G", "3G", "4G"].includes(kpi)) {
+            if (value > 97) return "bg-green-500 text-white";
+            if (value > 0) return "bg-yellow-400 text-black";
+            return "bg-orange-500 text-white";
+        }
+        if (kpi === "Voltage") {
+            return value < 45000
+                ? "bg-orange-500 text-white"
+                : "bg-green-500 text-white";
+        }
+        return "";
     };
 
     /* ===============================
       🟥 Selection logic
       =============================== */
     const isSelected = (r, c) => {
-      if (!start || !end) return false;
-      const minR = Math.min(start.r, end.r);
-      const maxR = Math.max(start.r, end.r);
-      const minC = Math.min(start.c, end.c);
-      const maxC = Math.max(start.c, end.c);
-      return r >= minR && r <= maxR && c >= minC && c <= maxC;
+        if (!start || !end) return false;
+        const minR = Math.min(start.r, end.r);
+        const maxR = Math.max(start.r, end.r);
+        const minC = Math.min(start.c, end.c);
+        const maxC = Math.max(start.c, end.c);
+        return r >= minR && r <= maxR && c >= minC && c <= maxC;
     };
 
     /* ===============================
       📋 Copy selected cells
       =============================== */
     const copySelection = () => {
-      if (!start || !end) return;
+        if (!start || !end) return;
 
-      const minR = Math.min(start.r, end.r);
-      const maxR = Math.max(start.r, end.r);
-      const minC = Math.min(start.c, end.c);
-      const maxC = Math.max(start.c, end.c);
+        const minR = Math.min(start.r, end.r);
+        const maxR = Math.max(start.r, end.r);
+        const minC = Math.min(start.c, end.c);
+        const maxC = Math.max(start.c, end.c);
 
-      const rows = [];
+        const rows = [];
 
-      const getTechnoImpactedLocal = (site) => {
-        const techs = ["2G", "3G", "4G"];
-        const impacted = [];
+        const getTechnoImpactedLocal = (site) => {
+            const techs = ["2G", "3G", "4G"];
+            const impacted = [];
 
-        techs.forEach((tech) => {
-          const dates = datesByKPI[tech];
-          if (!dates?.length) return;
+            techs.forEach((tech) => {
+                const dates = datesByKPI[tech];
+                if (!dates?.length) return;
 
-          const lastDate = dates[dates.length - 1];
-          const raw = site.kpis?.[tech]?.[lastDate];
+                const lastDate = dates[dates.length - 1];
+                const raw = site.kpis?.[tech]?.[lastDate];
 
-          if (raw === "-" || raw == null || raw === "NaN") return;
+                if (raw === "-" || raw == null || raw === "NaN") return;
 
-          const v = Number(raw);
-          if (v > 0 && v < 97) impacted.push(tech);
-        });
+                const v = Number(raw);
+                if (v > 0 && v < 97) impacted.push(tech);
+            });
 
-        return impacted.length ? impacted.join(", ") : "-";
-      };
+            return impacted.length ? impacted.join(", ") : "-";
+        };
 
-      for (let r = minR; r <= maxR; r++) {
-        const site = visibleSites[r];
+        for (let r = minR; r <= maxR; r++) {
+            const site = visibleSites[r];
 
-        const fullRow = [];
+            const fullRow = [];
 
-        // Checkbox column (ignored visually, but must exist for index alignment)
-        fullRow.push("");
-
-        // #
-        fullRow.push(r + 1);
-
-        // Site info
-        fullRow.push(site.siteCode);
-        fullRow.push(site.siteName);
-
-        // KPIs
-        displayKPIs.forEach((kpi, i) => {
-          datesByKPI[kpi].forEach((d) => {
-            fullRow.push(site.kpis?.[kpi]?.[d] ?? "-");
-          });
-
-          // separator column
-          if (i < displayKPIs.length - 1) {
+            // Checkbox column (ignored visually, but must exist for index alignment)
             fullRow.push("");
-          }
-        });
 
-        // Other columns
-        fullRow.push(getSiteStatus ? getSiteStatus(site) : "-");
-        fullRow.push(site.priority ?? "-");
-        fullRow.push(site.domain ?? "-");
-        fullRow.push(site.topologyPower ?? "-");
-        fullRow.push(getTechnoImpactedLocal(site));
+            // #
+            fullRow.push(r + 1);
 
-        // ✅ slice EXACT selected columns
-        rows.push(
-          fullRow.slice(minC + 1, maxC + 2).join("\t")
-        );
-      }
+            // Site info
+            fullRow.push(site.siteCode);
+            fullRow.push(site.siteName);
 
-      navigator.clipboard.writeText(rows.join("\n"));
+            // KPIs
+            displayKPIs.forEach((kpi, i) => {
+                datesByKPI[kpi].forEach((d) => {
+                    fullRow.push(site.kpis?.[kpi]?.[d] ?? "-");
+                });
+
+                // separator column
+                if (i < displayKPIs.length - 1) {
+                    fullRow.push("");
+                }
+            });
+
+            // Other columns
+            fullRow.push(getSiteStatus ? getSiteStatus(site) : "-");
+            fullRow.push(site.priority ?? "-");
+            fullRow.push(site.domain ?? "-");
+            fullRow.push(site.topologyPower ?? "-");
+            fullRow.push(getTechnoImpactedLocal(site));
+
+            // ✅ slice EXACT selected columns
+            rows.push(
+                fullRow.slice(minC + 1, maxC + 2).join("\t")
+            );
+        }
+
+        navigator.clipboard.writeText(rows.join("\n"));
     };
 
 
@@ -149,35 +149,35 @@
       ⌨ Keyboard shortcuts
       =============================== */
     useEffect(() => {
-      const handler = (e) => {
-        if (!selectionMode) return;
+        const handler = (e) => {
+            if (!selectionMode) return;
 
-        if (e.key === "Escape") {
-          setSelectionMode(false);
-          setStart(null);
-          setEnd(null);
-        }
+            if (e.key === "Escape") {
+                setSelectionMode(false);
+                setStart(null);
+                setEnd(null);
+            }
 
-        if (e.ctrlKey && e.key.toLowerCase() === "c") {
-          e.preventDefault();
-          copySelection();
-        }
-      };
+            if (e.ctrlKey && e.key.toLowerCase() === "c") {
+                e.preventDefault();
+                copySelection();
+            }
+        };
 
-      window.addEventListener("keydown", handler);
-      return () => window.removeEventListener("keydown", handler);
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
     }, [selectionMode, start, end]);
 
     const cellHandlers = (r, c, extra = "") => ({
-      onMouseDown: () => {
-        setSelectionMode(true);
-        setDragging(true);
-        setStart({ r, c });
-        setEnd({ r, c });
-      },
-      onMouseEnter: () => dragging && setEnd({ r, c }),
-      onMouseUp: () => setDragging(false),
-      className: `
+        onMouseDown: () => {
+            setSelectionMode(true);
+            setDragging(true);
+            setStart({ r, c });
+            setEnd({ r, c });
+        },
+        onMouseEnter: () => dragging && setEnd({ r, c }),
+        onMouseUp: () => setDragging(false),
+        className: `
         border px-3 select-none
         ${extra}
         ${isSelected(r, c) ? "ring-2 ring-red-500 ring-inset bg-red-500/20" : ""}
@@ -188,328 +188,335 @@
       ✅ BUTTON ACTIONS (ONLY ADDITION)
       =============================== */
     const showSelectedOnly = () => {
-      const selected = Object.keys(tickedSites).filter((k) => tickedSites[k]);
-      if (!selected.length) return;
+        const selected = Object.keys(tickedSites).filter((k) => tickedSites[k]);
+        if (!selected.length) return;
 
-      setVisibleSites(
-        allSites.filter((s) => selected.includes(s.siteCode))
-      );
+        setVisibleSites(
+            allSites.filter((s) => selected.includes(s.siteCode))
+        );
     };
 
     const clearFilter = () => {
-      setVisibleSites(allSites);
-      setTickedSites({});
+        setVisibleSites(allSites);
+        setTickedSites({});
     };
 
 
 
     const exportToExcel = () => {
-      const wb = XLSX.utils.book_new();
-      const wsData = [];
+        const wb = XLSX.utils.book_new();
+        const wsData = [];
 
-      /* ===== HEADER ===== */
-      const header = [
-        "#",
-        "Site Code",
-        "Site Name",
-        ...displayKPIs.flatMap(k =>
-          k === "Alarm"
-            ? ["Alarm"]
-            : datesByKPI[k]?.map(d => `${k} ${d}`) || []
-        ),
-        "Status",
-        "Priority",
-        "Domain",
-        "Topology Power",
-        "Techno Impacted",
-      ];
-
-      wsData.push(header);
-
-      /* ===== ROWS (FILTERED ONLY) ===== */
-      visibleSites.forEach((site, rIdx) => {
-        const row = [
-          rIdx + 1,
-          site.siteCode,
-          site.siteName,
+        /* ===== HEADER ===== */
+        const header = [
+            "#",
+            "Site Code",
+            "Site Name",
+            ...displayKPIs.flatMap(k =>
+                k === "Alarm"
+                    ? ["Alarm"]
+                    : datesByKPI[k]?.map(d => `${k} ${d}`) || []
+            ),
+            "Status",
+            "Priority",
+            "Domain",
+            "Topology Power",
+            "Techno Impacted",
         ];
 
+        wsData.push(header);
+
+        /* ===== ROWS (FILTERED ONLY) ===== */
+        visibleSites.forEach((site, rIdx) => {
+            const row = [
+                rIdx + 1,
+                site.siteCode,
+                site.siteName,
+            ];
+
+            displayKPIs.forEach(kpi => {
+                if (kpi === "Alarm") {
+                    row.push(site.kpis.Alarm ?? "-");
+                } else {
+                    datesByKPI[kpi]?.forEach(d => {
+                        row.push(site.kpis?.[kpi]?.[d] ?? "-");
+                    });
+                }
+            });
+
+            row.push(
+                getSiteStatus ? getSiteStatus(site) : "-",
+                site.priority ?? "-",
+                site.domain ?? "-",
+                site.topologyPower ?? "-",
+                "-"
+            );
+
+            wsData.push(row);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        /* ===== COLUMN WIDTH ===== */
+        ws["!cols"] = header.map(() => ({ wch: 18 }));
+
+        /* ===== COLORS ===== */
+        let colStart = 3;
+
         displayKPIs.forEach(kpi => {
-          if (kpi === "Alarm") {
-            row.push(site.kpis.Alarm ?? "-");
-          } else {
-            datesByKPI[kpi]?.forEach(d => {
-              row.push(site.kpis?.[kpi]?.[d] ?? "-");
+            if (kpi === "Alarm") {
+                colStart++;
+                return;
+            }
+
+            datesByKPI[kpi]?.forEach((d, idx) => {
+                visibleSites.forEach((site, rIdx) => {
+                    const value = site.kpis?.[kpi]?.[d];
+
+                    const cellRef = XLSX.utils.encode_cell({
+                        r: rIdx + 1,
+                        c: colStart + idx,
+                    });
+
+                    if (!ws[cellRef] || value === "-" || value == null) return;
+
+                    const v = Number(value);
+                    let color = null;
+
+                    if (["2G", "3G", "4G"].includes(kpi)) {
+                        if (v > 97) color = "FF16A34A";
+                        else if (v > 0) color = "FFFACC15";
+                        else color = "FFF97316";
+                    }
+
+                    if (kpi === "Voltage") {
+                        color = v < 45000 ? "FFF97316" : "FF16A34A";
+                    }
+
+                    if (color) {
+                        ws[cellRef].s = {
+                            fill: { fgColor: { rgb: color } },
+                        };
+                    }
+                });
+
+                colStart++;
             });
-          }
         });
 
-        row.push(
-          getSiteStatus ? getSiteStatus(site) : "-",
-          site.priority ?? "-",
-          site.domain ?? "-",
-          site.topologyPower ?? "-",
-          "-"
+        XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
+
+        const buffer = XLSX.write(wb, {
+            bookType: "xlsx",
+            type: "array",
+            cellStyles: true,
+        });
+
+        saveAs(
+            new Blob([buffer], { type: "application/octet-stream" }),
+            "KPI_Report.xlsx"
         );
-
-        wsData.push(row);
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-      /* ===== COLUMN WIDTH ===== */
-      ws["!cols"] = header.map(() => ({ wch: 18 }));
-
-      /* ===== COLORS ===== */
-      let colStart = 3;
-
-      displayKPIs.forEach(kpi => {
-        if (kpi === "Alarm") {
-          colStart++;
-          return;
-        }
-
-        datesByKPI[kpi]?.forEach((d, idx) => {
-          visibleSites.forEach((site, rIdx) => {
-            const value = site.kpis?.[kpi]?.[d];
-            const cellRef = XLSX.utils.encode_cell({
-              r: rIdx + 1,
-              c: colStart + idx,
-            });
-
-            if (!ws[cellRef] || value === "-" || value == null) return;
-
-            const v = Number(value);
-            let color = null;
-
-            if (["2G", "3G", "4G"].includes(kpi)) {
-              if (v > 97) color = "FF16A34A";
-              else if (v > 0) color = "FFFACC15";
-              else color = "FFF97316";
-            }
-
-            if (kpi === "Voltage") {
-              color = v < 45000 ? "FFF97316" : "FF16A34A";
-            }
-
-            if (color) {
-              ws[cellRef].s = {
-                fill: { fgColor: { rgb: color } },
-              };
-            }
-          });
-
-          colStart++;
-        });
-      });
-
-      XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
-
-      const buffer = XLSX.write(wb, {
-        bookType: "xlsx",
-        type: "array",
-        cellStyles: true,
-      });
-
-      saveAs(
-        new Blob([buffer], { type: "application/octet-stream" }),
-        "KPI_Report.xlsx"
-      );
     };
 
     /* ===============================
       🧾 RENDER
       =============================== */
     return (
-      <>
-        {/* ACTION BUTTONS */}
-        <div className="flex gap-3 mb-2 mx-4">
-          <button
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-            onClick={showSelectedOnly}
-          >
-            Show Selected
-          </button>
+        <>
+            {/* ACTION BUTTONS */}
+            <div className="flex gap-3 mb-2 mx-4">
+                <button
+                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                    onClick={showSelectedOnly}
+                >
+                    Show Selected
+                </button>
 
-          <button
-            className="px-4 py-2 bg-gray-600 text-white rounded"
-            onClick={clearFilter}
-          >
-            Clear
-          </button>
-        </div>
+                <button
+                    className="px-4 py-2 bg-gray-600 text-white rounded"
+                    onClick={clearFilter}
+                >
+                    Clear
+                </button>
+            </div>
 
-        <div className="overflow-auto mx-4 border border-gray-700 rounded">
-          <div className="flex justify-end mb-2 px-4">
-            <button
-              onClick={exportToExcel}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Export to Excel
-            </button>
-          </div>
-
-          <table className="min-w-max border-collapse text-sm">
-            <thead>
-              <tr className="bg-gray-800">
-                <th rowSpan={2} className="border px-2">✓</th>
-                <th rowSpan={2} className="border px-3">#</th>
-                <th rowSpan={2} className="border px-3">Site Code</th>
-                <th rowSpan={2} className="border px-3">Site Name</th>
-
-                {displayKPIs.map((kpi, i) => (
-                  <React.Fragment key={kpi}>
-                    <th colSpan={datesByKPI[kpi].length} className="border px-3">
-                      {kpi}
-                    </th>
-                    {i < displayKPIs.length - 1 && (
-                      <th className="bg-gray-900 w-3"></th>
-                    )}
-                  </React.Fragment>
-                ))}
-
-                <th rowSpan={2} className="border px-3">Status</th>
-                <th rowSpan={2} className="border px-3">Priority</th>
-                <th rowSpan={2} className="border px-3">Domain</th>
-                <th rowSpan={2} className="border px-3">Topology Power</th>
-                <th rowSpan={2} className="border px-3">Techno Impacted</th>
-              </tr>
-
-              <tr className="bg-gray-700">
-                {displayKPIs.map((kpi, i) => (
-                  <React.Fragment key={kpi}>
-                    {datesByKPI[kpi].map((d) => (
-                      <th key={d} className="border px-3">{d}</th>
-                    ))}
-                    {i < displayKPIs.length - 1 && (
-                      <th className="bg-gray-900 w-3"></th>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody>
-              {visibleSites.map((site, rIdx) => {
-                let cIdx = 0;
-
-                const getTechnoImpacted = (site) => {
-                  const techs = ["2G", "3G", "4G"];
-                  const impacted = [];
-
-                  techs.forEach((tech) => {
-                    const dates = datesByKPI[tech];
-                    if (!dates || !dates.length) return;
-
-                    const lastDate = dates[dates.length - 1];
-                    const raw = site.kpis?.[tech]?.[lastDate];
-
-                    const value =
-                      raw === "-" || raw == null || raw === "NaN"
-                        ? NaN
-                        : Number(raw);
-
-                    if (value > 0 && value < 97) {
-                      impacted.push(tech);
-                    }
-                  });
-
-                  return impacted.join(", ") || "-";
-                };
-
-                return (
-                  <tr key={site.siteCode} className="hover:bg-gray-800">
-                    {/* CHECKBOX */}
-                    <td className="border px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!tickedSites[site.siteCode]}
-                        onChange={(e) =>
-                          setTickedSites((p) => ({
-                            ...p,
-                            [site.siteCode]: e.target.checked,
-                          }))
-                        }
-                      />
-                    </td>
-
-                    <td {...cellHandlers(rIdx, cIdx++)}>{rIdx + 1}</td>
-
-                    <td
-                      {...cellHandlers(rIdx, cIdx++, "cursor-pointer text-blue-400")}
-                      onClick={() => !dragging && setSelectedSite(site)}
+            <div className="overflow-auto mx-4 border border-gray-700 rounded">
+                <div className="flex justify-end mb-2 px-4">
+                    <button
+                        onClick={exportToExcel}
+                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                     >
-                      {site.siteCode}
-                    </td>
+                        Export to Excel
+                    </button>
+                </div>
 
-                    <td
-                      {...cellHandlers(rIdx, cIdx++, "cursor-pointer text-blue-400")}
-                      onClick={() => !dragging && setSelectedSite(site)}
-                    >
-                      {site.siteName}
-                    </td>
+                <table className="min-w-max border-collapse text-sm">
+                    <thead>
+                        <tr className="bg-gray-800">
+                            <th rowSpan={2} className="border px-2">✓</th>
+                            <th rowSpan={2} className="border px-3">#</th>
+                            <th rowSpan={2} className="border px-3">Site Code</th>
+                            <th rowSpan={2} className="border px-3">Site Name</th>
 
-                    {displayKPIs.map((kpi, i) => (
-                      <React.Fragment key={kpi}>
-                        {kpi === "Alarm" ? (
-                          <td
-                            {...cellHandlers(
-                              rIdx,
-                              cIdx++,
-                              "text-center font-semibold bg-red-600/20"
-                            )}
-                          >
-                            {site.kpis.Alarm ?? "-"}
-                          </td>
-                        ) : (
-                          datesByKPI[kpi].map((d) => {
-                            const v = site.kpis[kpi]?.[d] ?? "-";
+                            {displayKPIs.map((kpi, i) => (
+                                <React.Fragment key={kpi}>
+                                    <th colSpan={datesByKPI[kpi].length} className="border px-3">
+                                        {kpi}
+                                    </th>
+                                    {i < displayKPIs.length - 1 && (
+                                        <th className="bg-gray-900 w-3"></th>
+                                    )}
+                                </React.Fragment>
+                            ))}
+
+                            <th rowSpan={2} className="border px-3">Status</th>
+                            <th rowSpan={2} className="border px-3">Priority</th>
+                            <th rowSpan={2} className="border px-3">Domain</th>
+                            <th rowSpan={2} className="border px-3">Topology Power</th>
+                            <th rowSpan={2} className="border px-3">Techno Impacted</th>
+                        </tr>
+
+                        <tr className="bg-gray-700">
+                            {displayKPIs.map((kpi, i) => (
+                                <React.Fragment key={kpi}>
+                                    {datesByKPI[kpi].map((d) => (
+                                        <th key={d} className="border px-3">{d}</th>
+                                    ))}
+                                    {i < displayKPIs.length - 1 && (
+                                        <th className="bg-gray-900 w-3"></th>
+                                    )}
+                                </React.Fragment>
+                            ))}
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {visibleSites.map((site, rIdx) => {
+                            let cIdx = 0;
+
+                            const getTechnoImpacted = (site) => {
+                                const techs = ["2G", "3G", "4G"];
+                                const impacted = [];
+
+                                techs.forEach((tech) => {
+                                    const dates = datesByKPI[tech];
+                                    if (!dates || !dates.length) return;
+
+                                    const lastDate = dates[dates.length - 1];
+                                    const raw = site.kpis?.[tech]?.[lastDate];
+
+                                    const value =
+                                        raw === "-" || raw == null || raw === "NaN"
+                                            ? NaN
+                                            : Number(raw);
+
+                                    if (value > 0 && value < 97) {
+                                        impacted.push(tech);
+                                    }
+                                });
+
+                                return impacted.join(", ") || "-";
+                            };
+
                             return (
-                              <td
-                                key={d}
-                                {...cellHandlers(
-                                  rIdx,
-                                  cIdx++,
-                                  `text-center ${getCellColor(kpi, v)}`
-                                )}
-                                onClick={() =>
-                                  !dragging &&
-                                  (setSelectedSite(site), setSelectedDay(d))
-                                }
-                              >
-                                {v}
-                              </td>
+                                <tr key={site.siteCode} className="hover:bg-gray-800">
+                                    {/* CHECKBOX */}
+                                    <td className="border px-2 text-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={!!tickedSites[site.siteCode]}
+                                            onChange={(e) =>
+                                                setTickedSites((p) => ({
+                                                    ...p,
+                                                    [site.siteCode]: e.target.checked,
+                                                }))
+                                            }
+                                        />
+                                    </td>
+
+                                    <td {...cellHandlers(rIdx, cIdx++)}>{rIdx + 1}</td>
+
+                                    <td
+                                        {...cellHandlers(rIdx, cIdx++, "cursor-pointer text-blue-400")}
+                                        onClick={() => !dragging && setSelectedSite(site)}
+                                    >
+                                        {site.siteCode}
+                                    </td>
+
+                                    <td
+                                        {...cellHandlers(rIdx, cIdx++, "cursor-pointer text-blue-400")}
+                                        onClick={() => !dragging && setSelectedSite(site)}
+                                    >
+                                        {site.siteName}
+                                    </td>
+
+                                    {displayKPIs.map((kpi, i) => (
+                                        <React.Fragment key={kpi}>
+                                            {kpi === "Alarm" ? (
+                                                <td
+                                                    {...cellHandlers(
+                                                        rIdx,
+                                                        cIdx++,
+                                                        "text-center font-semibold bg-red-600/20"
+                                                    )}
+                                                >
+                                                    {site.kpis.Alarm ?? "-"}
+                                                </td>
+                                            ) : (
+                                                datesByKPI[kpi].map((d) => {
+                                                    const raw = site.kpis[kpi]?.[d];
+
+                                                    const v =
+                                                        kpi === "Packet Loss"
+                                                            ? (raw === "-" || raw == null ? "-" : `${(Number(raw) * 100).toFixed(2)}%`)
+                                                            : raw ?? "-";
+
+                                                    return (
+                                                        <td
+                                                            key={d}
+                                                            {...cellHandlers(
+                                                                rIdx,
+                                                                cIdx++,
+                                                                `text-center ${getCellColor(kpi, v)}`
+                                                            )}
+                                                            onClick={() =>
+                                                                !dragging &&
+                                                                (setSelectedSite(site), setSelectedDay(d))
+                                                            }
+                                                        >
+                                                            {v}
+                                                        </td>
+                                                    );
+                                                })
+                                            )}
+
+                                            {i < displayKPIs.length - 1 && (
+                                                <td
+                                                    {...cellHandlers(rIdx, cIdx++, "bg-gray-900 pointer-events-none")}
+                                                />
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                    <td {...cellHandlers(rIdx, cIdx++)}>
+                                        {getSiteStatus ? getSiteStatus(site) : "-"}
+                                    </td>
+                                    <td {...cellHandlers(rIdx, cIdx++)}>{site.priority ?? "-"}</td>
+                                    <td {...cellHandlers(rIdx, cIdx++)}>{site.domain ?? "-"}</td>
+                                    <td {...cellHandlers(rIdx, cIdx++)}>
+                                        {site.topologyPower ?? "-"}
+                                    </td>
+                                    <td {...cellHandlers(rIdx, cIdx++)}>
+                                        {getTechnoImpacted(site)}
+                                    </td>
+
+                                </tr>
                             );
-                          })
-                        )}
-
-                        {i < displayKPIs.length - 1 && (
-                          <td
-                            {...cellHandlers(rIdx, cIdx++, "bg-gray-900 pointer-events-none")}
-                          />
-                        )}
-                      </React.Fragment>
-                    ))}
-                    <td {...cellHandlers(rIdx, cIdx++)}>
-                      {getSiteStatus ? getSiteStatus(site) : "-"}
-                    </td>
-                    <td {...cellHandlers(rIdx, cIdx++)}>{site.priority ?? "-"}</td>
-                    <td {...cellHandlers(rIdx, cIdx++)}>{site.domain ?? "-"}</td>
-                    <td {...cellHandlers(rIdx, cIdx++)}>
-                      {site.topologyPower ?? "-"}
-                    </td>
-                    <td {...cellHandlers(rIdx, cIdx++)}>
-                      {getTechnoImpacted(site)}
-                    </td>
-
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </>
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </>
     );
-  };
+};
 
-  export default KPITable;
+export default KPITable;

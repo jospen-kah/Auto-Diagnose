@@ -14,29 +14,48 @@ export const extractSiteCode = (value) => {
 const formatNokiaDate = (rawDate) => {
   if (!rawDate) return null;
 
-  let jsDate;
+  console.log("🔍 formatNokiaDate input:", rawDate, "type:", typeof rawDate, rawDate instanceof Date ? "is Date" : "not Date");
 
-  // Already JS Date (xlsx cellDates: true)
-  if (rawDate instanceof Date) {
-    jsDate = rawDate;
+  let dateString;
+
+  // String in MM.DD.YYYY format (not DD.MM.YYYY)
+  if (typeof rawDate === "string" && /^\d{2}\.\d{2}\.\d{4}$/.test(rawDate)) {
+    const [month, day, year] = rawDate.split(".");
+    dateString = `${year}-${month}-${day} 00:00:00:00`;
+    console.log("✅ Parsed MM.DD.YYYY format:", dateString);
   }
   // Excel serial number
   else if (typeof rawDate === "number") {
     const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-    jsDate = new Date(excelEpoch.getTime() + rawDate * 86400000);
+    const jsDate = new Date(excelEpoch.getTime() + rawDate * 86400000);
+    const y = jsDate.getUTCFullYear();
+    const m = String(jsDate.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(jsDate.getUTCDate()).padStart(2, "0");
+    dateString = `${y}-${m}-${d} 00:00:00:00`;
+    console.log("✅ Parsed Excel serial:", dateString);
   }
-  // String fallback
-  else {
-    jsDate = new Date(rawDate);
+  // Already JS Date - add 1 day to correct timezone offset issue
+  else if (rawDate instanceof Date) {
+    // The timezone offset causes dates to be 1 day earlier, so add 1 day
+    const correctedDate = new Date(rawDate.getTime() + 86400000);
+    const y = correctedDate.getUTCFullYear();
+    const m = String(correctedDate.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(correctedDate.getUTCDate()).padStart(2, "0");
+    dateString = `${y}-${m}-${d} 00:00:00:00`;
+    console.log("✅ Parsed JS Date (add 1 dy for offset):", dateString);
+  }
+  // String fallback (try parsing)
+  else if (typeof rawDate === "string") {
+    const jsDate = new Date(rawDate);
+    if (isNaN(jsDate)) return null;
+    const y = jsDate.getFullYear();
+    const m = String(jsDate.getMonth() + 1).padStart(2, "0");
+    const d = String(jsDate.getDate()).padStart(2, "0");
+    dateString = `${y}-${m}-${d} 00:00:00:00`;
+    console.log("✅ Parsed string fallback:", dateString);
   }
 
-  if (isNaN(jsDate)) return null;
-
-  const y = jsDate.getUTCFullYear();
-  const m = String(jsDate.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(jsDate.getUTCDate()).padStart(2, "0");
-
-  return `${y}-${m}-${d} 00:00:00:00`;
+  return dateString || null;
 };
 
 // ================= VALID ALARMS (REUSE SAME LIST) =================
@@ -85,6 +104,14 @@ export const parseNokiaData = (rows, kpiType, existingSiteCodes = []) => {
 
   console.group(`📡 Nokia Parser → ${kpiType}`);
   console.log("Rows:", rows.length);
+  
+  // DEBUG: Show sample dates from raw file
+  if (kpiType !== "Alarm" && rows.length > 0) {
+    console.log("🔍 Raw dates from file (first 5 rows):");
+    rows.slice(0, 5).forEach((row, idx) => {
+      console.log(`  Row ${idx}: Period start time =`, row["Period start time"], "type:", typeof row["Period start time"]);
+    });
+  }
 
   // ===================== ALARM LOGIC =====================
   if (kpiType === "Alarm") {

@@ -43,17 +43,42 @@ const KPITable = ({
   =============================== */
   const getCellColor = (kpi, value) => {
     if (value === "-" || value == null) return "";
+
     if (["2G", "3G", "4G"].includes(kpi)) {
       if (value > 97) return "bg-green-500 text-white";
       if (value > 0) return "bg-yellow-400 text-black";
       return "bg-orange-500 text-white";
     }
+
     if (kpi === "Voltage") {
-      return value < 45000 ? "bg-orange-500 text-white" : "bg-green-500 text-white";
+      return value < 45000
+        ? "bg-orange-500 text-white"
+        : "bg-green-500 text-white";
     }
+
+    // ✅ PACKET LOSS COLORING
+    if (kpi === "Packet Loss") {
+      const num = Number(value);
+      if (isNaN(num)) return "";
+      return num <= 0.5
+        ? "bg-green-500 text-white" // <= 0.5%
+        : "bg-orange-500 text-white";
+    }
+
     return "";
   };
 
+
+
+  const formatPacketLoss = (raw) => {
+    if (raw === "-" || raw == null) return "-";
+
+    const num = Number(raw);
+    if (isNaN(num)) return "-";
+
+    // raw is already multiplied by 100, just add %
+    return `${num.toFixed(2)}%`;
+  };
   /* ===============================
      🟥 Selection logic
   =============================== */
@@ -169,9 +194,8 @@ const KPITable = ({
     },
     onMouseEnter: () => dragging && setEnd({ r, c }),
     onMouseUp: () => setDragging(false),
-    className: `border px-3 select-none ${extra} ${
-      isSelected(r, c) ? "ring-2 ring-red-500 ring-inset bg-red-500/20" : ""
-    }`,
+    className: `border px-3 select-none ${extra} ${isSelected(r, c) ? "ring-2 ring-red-500 ring-inset bg-red-500/20" : ""
+      }`,
   });
 
   /* ===============================
@@ -235,7 +259,10 @@ const KPITable = ({
         if (kpi === "Alarm") {
           row.push(site.kpis.Alarm ?? "-");
         } else {
-          datesByKPI[kpi]?.forEach((d) => row.push(site.kpis?.[kpi]?.[d] ?? "-"));
+          datesByKPI[kpi]?.forEach((d) => {
+            const v = site.kpis?.[kpi]?.[d] ?? "-";
+            row.push(kpi === "Packet Loss" ? formatPacketLoss(v) : v);
+          });
         }
       });
 
@@ -417,50 +444,54 @@ const KPITable = ({
                     {site.siteName}
                   </td>
 
-                  {displayKPIs.map((kpi, i) => (
-                    <React.Fragment key={kpi}>
-                      {kpi === "Alarm" ? (
-                        <td
-                          {...cellHandlers(
-                            rIdx,
-                            cIdx++,
-                            "text-center font-semibold bg-red-600/20"
-                          )}
-                        >
-                          {site.kpis.Alarm ?? "-"}
-                        </td>
-                      ) : (
-                        datesByKPI[kpi].map((d) => {
-                          const v = site.kpis[kpi]?.[d] ?? "-";
-                          return (
-                            <td
-                              key={d}
-                              {...cellHandlers(
-                                rIdx,
-                                cIdx++,
-                                `text-center ${getCellColor(kpi, v)}`
-                              )}
-                              onClick={() =>
-                                !dragging && (setSelectedSite(site), setSelectedDay(d))
-                              }
-                            >
-                              {v}
-                            </td>
-                          );
-                        })
-                      )}
+{displayKPIs.map((kpi, i) => (
+  <React.Fragment key={kpi}>
+    {kpi === "Alarm" ? (
+      <td
+        {...cellHandlers(
+          rIdx,
+          cIdx++,
+          "text-center font-semibold bg-red-600/20"
+        )}
+      >
+        {site.kpis.Alarm ?? "-"}
+      </td>
+    ) : (
+      datesByKPI[kpi].map((d) => {
+        const v = site.kpis[kpi]?.[d] ?? "-";
+        const displayValue = kpi === "Packet Loss" ? formatPacketLoss(v) : v;
+        return (
+          <td
+            key={d}
+            {...cellHandlers(
+              rIdx,
+              cIdx++,
+              `text-center ${getCellColor(kpi, v)}`
+            )}
+            onClick={() => {
+              if (!dragging) {
+                setSelectedSite(site);
+                setSelectedDay(d);
+              }
+            }}
+          >
+            {displayValue}
+          </td>
+        );
+      })
+    )}
 
-                      {i < displayKPIs.length - 1 && (
-                        <td
-                          {...cellHandlers(
-                            rIdx,
-                            cIdx++,
-                            "bg-gray-900 pointer-events-none"
-                          )}
-                        />
-                      )}
-                    </React.Fragment>
-                  ))}
+    {i < displayKPIs.length - 1 && (
+      <td
+        {...cellHandlers(
+          rIdx,
+          cIdx++,
+          "bg-gray-900 pointer-events-none"
+        )}
+      />
+    )}
+  </React.Fragment>
+))}
                   <td {...cellHandlers(rIdx, cIdx++)}>
                     {getSiteStatus ? getSiteStatus(site) : "-"}
                   </td>

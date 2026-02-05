@@ -81,7 +81,7 @@
           if (kpi === "Voltage" && kpiValue != null) {
             groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue * 1000;
           } else if (kpi === "Packet Loss" && kpiValue != null) {
-            groupedBySite[siteCode].kpis[kpi][beginTime] = `${kpiValue}%`;
+            groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue;
           } else {
             groupedBySite[siteCode].kpis[kpi][beginTime] = kpiValue ?? "-";
           }

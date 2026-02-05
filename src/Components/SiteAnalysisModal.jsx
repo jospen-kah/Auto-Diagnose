@@ -100,9 +100,9 @@ const SiteAnalysisModal = ({
           const status =
             isNaN(num)
               ? "No Value"
-              : num >= 2
-              ? "Packet Loss"
-              : "No Packet Loss";
+              : num < 0.5
+              ? "No Packet Loss"
+              : "Packet Loss Available";
 
           return (
             <p>

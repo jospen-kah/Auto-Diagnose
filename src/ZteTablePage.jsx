@@ -55,6 +55,7 @@ const ZTETablePage = () => {
       let value = kpiValue ?? "-";
       if ((kpiType === "2G" || kpiType === "3G") && value !== "-") value *= 100;
       if (kpiType === "Voltage" && value !== "-") value *= 1000;
+      if (kpiType === "Packet Loss" && value !== "-") value *= 100;
 
       acc[siteCode].kpis[kpiType][beginTime] = value;
 
