@@ -70,30 +70,191 @@ const KPITable = ({
 
 
 
-  const formatPacketLoss = (raw) => {
-    if (raw === "-" || raw == null) return "-";
+  const exportToExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const wsData = [];
+    const wsStyles = [];
 
-    const num = Number(raw);
-    if (isNaN(num)) return "-";
+    /* ===== HEADER ===== */
+    const header = [
+      "#",
+      "Site Code",
+      "Site Name",
+      ...displayKPIs.flatMap((k) =>
+        k === "Alarm" ? ["Alarm"] : datesByKPI[k]?.map((d) => `${k} ${d}`) || []
+      ),
+      "Status",
+      "Priority",
+      "Domain",
+      "Topology Power",
+      "Techno Impacted",
+    ];
 
-    // raw is already multiplied by 100, just add %
-    return `${num.toFixed(2)}%`;
+    wsData.push(header);
+    wsStyles.push(header.map(() => ({ font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "FFFFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "FF1F2937" } } })));
+
+    /* helper to map our class colors to XLSX style objects */
+    const classToStyle = (cls) => {
+      if (!cls) return {};
+      // Base style shape that is XLSX-safe
+      const base = {
+        font: { name: "Calibri", sz: 11, color: { rgb: "FF000000" } },
+        fill: { patternType: "solid", fgColor: { rgb: "FFFFFFFF" } },
+        alignment: { horizontal: "center", vertical: "center" },
+      };
+
+      if (cls.includes("bg-green-500")) {
+        return {
+          font: { name: "Calibri", sz: 11, color: { rgb: "FFFFFFFF" } },
+          fill: { patternType: "solid", fgColor: { rgb: "FF16A34A" } },
+          alignment: { horizontal: "center", vertical: "center" },
+        };
+      }
+      if (cls.includes("bg-yellow-400")) {
+        return {
+          font: { name: "Calibri", sz: 11, color: { rgb: "FF000000" } },
+          fill: { patternType: "solid", fgColor: { rgb: "FFF59E0B" } },
+          alignment: { horizontal: "center", vertical: "center" },
+        };
+      }
+      if (cls.includes("bg-orange-500")) {
+        return {
+          font: { name: "Calibri", sz: 11, color: { rgb: "FFFFFFFF" } },
+          fill: { patternType: "solid", fgColor: { rgb: "FFFB923C" } },
+          alignment: { horizontal: "center", vertical: "center" },
+        };
+      }
+      if (cls.includes("bg-red-600")) {
+        return {
+          font: { name: "Calibri", sz: 11, color: { rgb: "FFFFFFFF" } },
+          fill: { patternType: "solid", fgColor: { rgb: "FFDC2626" } },
+          alignment: { horizontal: "center", vertical: "center" },
+        };
+      }
+
+      return base;
+    };
+
+    /* ===== ROWS (FILTERED ONLY) ===== */
+    visibleSites.forEach((site, rIdx) => {
+      const row = [rIdx + 1, site.siteCode, site.siteName];
+      const rowStyles = [
+        { alignment: { horizontal: "center" } },
+        { alignment: { horizontal: "center" } },
+        { alignment: { horizontal: "left" } },
+      ];
+
+      displayKPIs.forEach((kpi) => {
+        if (kpi === "Alarm") {
+          row.push(site.kpis.Alarm ?? "-");
+          rowStyles.push({ alignment: { horizontal: "center" } });
+        } else {
+          datesByKPI[kpi]?.forEach((d) => {
+            let v = site.kpis?.[kpi]?.[d] ?? "-";
+
+            // Prepare cell value and style
+            let cellValue = v;
+            const cls = getCellColor(kpi, v);
+            let style = classToStyle(cls);
+
+            // Normalize Packet Loss to numeric fraction and apply percent format
+            if (kpi === "Packet Loss" && v !== "-" && v != null) {
+              let parsed = null;
+              if (typeof v === "string" && v.trim().endsWith("%")) {
+                const n = parseFloat(v.replace("%", "").trim());
+                if (!isNaN(n)) parsed = n / 100;
+              } else if (!isNaN(Number(v))) {
+                const n = Number(v);
+                // If value looks like a whole percent (e.g., 12.3) convert to fraction
+                parsed = Math.abs(n) <= 1 ? n : n / 100;
+              }
+
+              if (parsed !== null) {
+                cellValue = parsed; // numeric fraction for Excel
+                style = { ...style, numFmt: "0.00%" };
+              }
+            } else {
+              // For other numeric-looking KPI values, coerce to number for proper typing
+              if (typeof v === "string" && v !== "-" && !isNaN(Number(v))) {
+                cellValue = Number(v);
+              }
+            }
+
+            row.push(cellValue);
+            rowStyles.push(style);
+          });
+        }
+      });
+
+      // Other columns
+      row.push(
+        getSiteStatus ? getSiteStatus(site) : "-",
+        site.priority ?? "-",
+        site.domain ?? "-",
+        site.topologyPower ?? "-",
+        getTechnoImpacted(site)
+      );
+      // add default styles for trailing columns
+      rowStyles.push({ alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } });
+
+      wsData.push(row);
+      wsStyles.push(rowStyles);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = header.map(() => ({ wch: 18 }));
+
+    // Apply styles cell-by-cell
+    for (let r = 0; r < wsStyles.length; r++) {
+      const stylesRow = wsStyles[r] || [];
+      for (let c = 0; c < stylesRow.length; c++) {
+        const style = stylesRow[c];
+        if (!style || Object.keys(style).length === 0) continue;
+        const cellAddress = XLSX.utils.encode_cell({ r, c });
+        const cell = ws[cellAddress];
+        if (cell) cell.s = style;
+      }
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
+
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array", cellStyles: true });
+    saveAs(new Blob([buffer], { type: "application/octet-stream" }), "KPI_Report.xlsx");
   };
-  /* ===============================
-     🟥 Selection logic
-  =============================== */
-  const isSelected = (r, c) => {
-    if (!start || !end) return false;
-    const minR = Math.min(start.r, end.r);
-    const maxR = Math.max(start.r, end.r);
-    const minC = Math.min(start.c, end.c);
-    const maxC = Math.max(start.c, end.c);
-    return r >= minR && r <= maxR && c >= minC && c <= maxC;
-  };
 
-  /* ===============================
-     📋 Copy selected cells
-  =============================== */
+  const exportToCSV = () => {
+    const wb = XLSX.utils.book_new();
+    const wsData = [];
+    const header = [
+      "#",
+      "Site Code",
+      "Site Name",
+      ...displayKPIs.flatMap((k) =>
+        k === "Alarm" ? ["Alarm"] : datesByKPI[k]?.map((d) => `${k} ${d}`) || []
+      ),
+      "Status",
+      "Priority",
+      "Domain",
+      "Topology Power",
+      "Techno Impacted",
+    ];
+    wsData.push(header);
+
+    visibleSites.forEach((site, rIdx) => {
+      const row = [rIdx + 1, site.siteCode, site.siteName];
+      displayKPIs.forEach((kpi) => {
+        if (kpi === "Alarm") row.push(site.kpis.Alarm ?? "-");
+        else datesByKPI[kpi]?.forEach((d) => row.push(site.kpis?.[kpi]?.[d] ?? "-"));
+      });
+      row.push(getSiteStatus ? getSiteStatus(site) : "-", site.priority ?? "-", site.domain ?? "-", site.topologyPower ?? "-", getTechnoImpacted(site));
+      wsData.push(row);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "KPI_Report.csv");
+  };
   const copySelection = () => {
     if (!start || !end) return;
 
@@ -104,26 +265,9 @@ const KPITable = ({
 
     const rows = [];
 
-    const getTechnoImpactedLocal = (site) => {
-      const techs = ["2G", "3G", "4G"];
-      const impacted = [];
-      techs.forEach((tech) => {
-        const dates = datesByKPI[tech];
-        if (!dates?.length) return;
-
-        const lastDate = dates[dates.length - 1];
-        const raw = site.kpis?.[tech]?.[lastDate];
-
-        if (raw === "-" || raw == null || raw === "NaN") return;
-
-        const v = Number(raw);
-        if (v > 0 && v < 97) impacted.push(tech);
-      });
-      return impacted.length ? impacted.join(", ") : "-";
-    };
-
     for (let r = minR; r <= maxR; r++) {
       const site = visibleSites[r];
+      if (!site) continue;
       const fullRow = [];
 
       // Checkbox column (ignored visually, but must exist for index alignment)
@@ -138,9 +282,13 @@ const KPITable = ({
 
       // KPIs
       displayKPIs.forEach((kpi, i) => {
-        datesByKPI[kpi].forEach((d) => {
-          fullRow.push(site.kpis?.[kpi]?.[d] ?? "-");
-        });
+        if (kpi === "Alarm") {
+          fullRow.push(site.kpis?.Alarm ?? "-");
+        } else {
+          datesByKPI[kpi]?.forEach((d) => {
+            fullRow.push(site.kpis?.[kpi]?.[d] ?? "-");
+          });
+        }
 
         // separator column
         if (i < displayKPIs.length - 1) {
@@ -153,7 +301,8 @@ const KPITable = ({
       fullRow.push(site.priority ?? "-");
       fullRow.push(site.domain ?? "-");
       fullRow.push(site.topologyPower ?? "-");
-      fullRow.push(getTechnoImpactedLocal(site));
+      // leave techno impacted empty for clipboard export (best-effort)
+      fullRow.push("");
 
       // ✅ slice EXACT selected columns
       rows.push(fullRow.slice(minC + 1, maxC + 2).join("\t"));
@@ -184,6 +333,15 @@ const KPITable = ({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [selectionMode, start, end]);
+
+  const isSelected = (r, c) => {
+    if (!start || !end) return false;
+    const minR = Math.min(start.r, end.r);
+    const maxR = Math.max(start.r, end.r);
+    const minC = Math.min(start.c, end.c);
+    const maxC = Math.max(start.c, end.c);
+    return r >= minR && r <= maxR && c >= minC && c <= maxC;
+  };
 
   const cellHandlers = (r, c, extra = "") => ({
     onMouseDown: () => {
@@ -228,63 +386,27 @@ const KPITable = ({
   };
 
   /* ===============================
-     📤 EXPORT
+     🔎 Tech impacted helper (shared)
   =============================== */
-  const exportToExcel = () => {
-    const wb = XLSX.utils.book_new();
-    const wsData = [];
+  const getTechnoImpacted = (site) => {
+    const techs = ["2G", "3G", "4G"];
+    const impacted = [];
 
-    /* ===== HEADER ===== */
-    const header = [
-      "#",
-      "Site Code",
-      "Site Name",
-      ...displayKPIs.flatMap((k) =>
-        k === "Alarm" ? ["Alarm"] : datesByKPI[k]?.map((d) => `${k} ${d}`) || []
-      ),
-      "Status",
-      "Priority",
-      "Domain",
-      "Topology Power",
-      "Techno Impacted",
-    ];
+    techs.forEach((tech) => {
+      const dates = datesByKPI[tech];
+      if (!dates || !dates.length) return;
 
-    wsData.push(header);
+      const lastDate = dates[dates.length - 1];
+      const raw = site.kpis?.[tech]?.[lastDate];
+      const value = raw === "-" || raw == null || raw === "NaN" ? NaN : Number(raw);
 
-    /* ===== ROWS (FILTERED ONLY) ===== */
-    visibleSites.forEach((site, rIdx) => {
-      const row = [rIdx + 1, site.siteCode, site.siteName];
-
-      displayKPIs.forEach((kpi) => {
-        if (kpi === "Alarm") {
-          row.push(site.kpis.Alarm ?? "-");
-        } else {
-          datesByKPI[kpi]?.forEach((d) => {
-            const v = site.kpis?.[kpi]?.[d] ?? "-";
-            row.push(kpi === "Packet Loss" ? formatPacketLoss(v) : v);
-          });
-        }
-      });
-
-      row.push(
-        getSiteStatus ? getSiteStatus(site) : "-",
-        site.priority ?? "-",
-        site.domain ?? "-",
-        site.topologyPower ?? "-",
-        "-"
-      );
-
-      wsData.push(row);
+      if (value > 0 && value < 97) impacted.push(tech);
     });
 
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = header.map(() => ({ wch: 18 }));
-
-    XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array", cellStyles: true });
-    saveAs(new Blob([buffer], { type: "application/octet-stream" }), "KPI_Report.xlsx");
+    return impacted.join(", ") || "-";
   };
+
+  /* Duplicate exportToExcel removed — use the styled exportToExcel implemented earlier in this file */
 
   /* ===============================
      🧾 RENDER
@@ -316,12 +438,18 @@ const KPITable = ({
       </div>
 
       <div className="overflow-auto mx-4 border border-gray-700 rounded">
-        <div className="flex justify-end mb-2 px-4">
+        <div className="flex justify-end mb-2 px-4 gap-2">
           <button
             onClick={exportToExcel}
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
           >
-            Export to Excel
+            Export to Excel (styled)
+          </button>
+          <button
+            onClick={exportToCSV}
+            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          >
+            Export CSV
           </button>
         </div>
 
@@ -392,25 +520,7 @@ const KPITable = ({
             {visibleSites.map((site, rIdx) => {
               let cIdx = 0;
 
-              const getTechnoImpacted = (site) => {
-                const techs = ["2G", "3G", "4G"];
-                const impacted = [];
-
-                techs.forEach((tech) => {
-                  const dates = datesByKPI[tech];
-                  if (!dates || !dates.length) return;
-
-                  const lastDate = dates[dates.length - 1];
-                  const raw = site.kpis?.[tech]?.[lastDate];
-
-                  const value =
-                    raw === "-" || raw == null || raw === "NaN" ? NaN : Number(raw);
-
-                  if (value > 0 && value < 97) impacted.push(tech);
-                });
-
-                return impacted.join(", ") || "-";
-              };
+              
 
               return (
                 <tr key={site.siteCode} className="hover:bg-gray-800">

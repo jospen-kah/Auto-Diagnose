@@ -116,6 +116,8 @@ export const parseNokiaData = (rows, kpiType, existingSiteCodes = []) => {
   // ===================== ALARM LOGIC =====================
   if (kpiType === "Alarm") {
     const siteAlarmMap = {};
+    let extractedCount = 0;
+    let filteredCount = 0;
 
     rows.forEach((row) => {
       const alarmName = row["Alarm Name"];
@@ -124,15 +126,22 @@ export const parseNokiaData = (rows, kpiType, existingSiteCodes = []) => {
       const siteCode = extractSiteCode(alarmSource);
       if (!siteCode) return;
 
+      extractedCount++;
+
       if (existingSiteCodes.length && !existingSiteCodes.includes(siteCode))
         return;
 
-      if (!alarmName || !VALID_ALARMS.includes(alarmName)) return;
+      if (!alarmName || !VALID_ALARMS.includes(alarmName)) {
+        filteredCount++;
+        return;
+      }
 
       siteAlarmMap[siteCode] ??= {};
       siteAlarmMap[siteCode][alarmName] ??= 0;
       siteAlarmMap[siteCode][alarmName]++;
     });
+
+    console.log(`✅ Alarms extracted: ${extractedCount}, filtered (invalid alarm name): ${filteredCount}, unique sites: ${Object.keys(siteAlarmMap).length}`);
 
     const sites =
       existingSiteCodes.length > 0
@@ -155,6 +164,7 @@ export const parseNokiaData = (rows, kpiType, existingSiteCodes = []) => {
       });
     });
 
+    console.log(`📊 Final alarm rows: ${parsed.length}`);
     console.groupEnd();
     return parsed;
   }
