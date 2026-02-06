@@ -321,8 +321,7 @@ const KPITable = ({
       fullRow.push(site.priority ?? "-");
       fullRow.push(site.domain ?? "-");
       fullRow.push(site.topologyPower ?? "-");
-      // leave techno impacted empty for clipboard export (best-effort)
-      fullRow.push("");
+      fullRow.push(getTechnoImpacted(site));
 
       // ✅ slice EXACT selected columns
       rows.push(fullRow.slice(minC + 1, maxC + 2).join("\t"));
