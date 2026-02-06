@@ -255,6 +255,26 @@ const KPITable = ({
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, "KPI_Report.csv");
   };
+
+  /* ===============================
+     📊 Format Packet Loss for Display
+  =============================== */
+  const formatPacketLoss = (value) => {
+    if (value === "-" || value == null) return "-";
+    
+    let numValue = Number(value);
+    if (isNaN(numValue)) return String(value);
+    
+    // If value already looks like a percent (e.g., "12.5%" or 12.5), just display with %
+    if (typeof value === "string" && value.trim().endsWith("%")) {
+      return value.trim();
+    }
+    
+    // If it's a small decimal (like 0.125), assume it's a fraction and display as is with %
+    // Otherwise display as-is with %
+    return `${numValue}%`;
+  };
+
   const copySelection = () => {
     if (!start || !end) return;
 
