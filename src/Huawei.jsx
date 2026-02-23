@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { parseHuaweiData } from "./utils/huaweiparser";
 
-const STORAGE_KEY = "HUAWEI_TABLE_DATA";
 const STORAGE_DATE_KEY = "HUAWEI_TABLE_DATE";
 
 const HuaweiPage = () => {
@@ -26,10 +25,9 @@ const HuaweiPage = () => {
 
   /* ================= CHECK LOCAL STORAGE ================= */
   useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY);
     const savedDate = localStorage.getItem(STORAGE_DATE_KEY);
 
-    if (savedData) {
+    if (savedDate) {
       setHasPreviousTable(true);
       setPreviousDate(savedDate);
     }
@@ -76,10 +74,11 @@ const HuaweiPage = () => {
     Promise.all(promises).then(() => {
       const now = new Date().toLocaleString();
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+      // Save only small metadata, NOT the full data (avoid localStorage quota exceeded)
       localStorage.setItem(STORAGE_DATE_KEY, now);
 
       setLoading(false);
+      // Pass allData via navigate state
       navigate("/huawei-table", { state: { data: allData } });
     });
   };
