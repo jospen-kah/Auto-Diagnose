@@ -33,7 +33,7 @@ const Filters = ({
         className="bg-gray-800 px-3 py-2 rounded"
       >
         <option value="ALL">All Status</option>
-        <option value="Ok">Ok</option>
+        <option value="Ok">OK</option>
         <option value="Degraded">Degraded</option>
         <option value="Down">Down</option>
        
@@ -48,7 +48,7 @@ const Filters = ({
         <option value="P0">P0</option>
         <option value="P1">P1</option>
         <option value="P2">P2</option>
-        <option value="OK">OK</option>
+        <option value="Ok">OK</option>
       </select>
 
       <select

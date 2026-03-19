@@ -128,13 +128,34 @@
       return "Ok";
     };
 
+  const normalizeDomainForFilter = (domain) => {
+    if (domain == null) return "-";
+    const s = String(domain).trim();
+    if (!s || s === "-") return "-";
+    if (/^n\s*\/\s*a$/i.test(s) || /^na$/i.test(s)) return "RAN";
+    return s;
+  };
+
     /* ================= FILTERED SITES ================= */
     const filteredSites = Object.values(groupedBySite).filter((site) => {
       const status = getSiteStatus(site);
 
-      if (statusFilter !== "ALL" && status !== statusFilter) return false;
-      if (priorityFilter !== "ALL" && site.priority !== priorityFilter) return false;
-      if (domainFilter !== "ALL" && site.domain !== domainFilter) return false;
+      if (
+        statusFilter !== "ALL" &&
+        String(status).toLowerCase() !== String(statusFilter).toLowerCase()
+      )
+        return false;
+      if (
+        priorityFilter !== "ALL" &&
+        String(site.priority ?? "-").toLowerCase() !==
+          String(priorityFilter).toLowerCase()
+      )
+        return false;
+      if (
+        domainFilter !== "ALL" &&
+        normalizeDomainForFilter(site.domain) !== domainFilter
+      )
+        return false;
 
       const searchText = search.toLowerCase();
       if (
@@ -183,6 +204,7 @@
             setSelectedDay={setSelectedDay}
             datesByKPI={datesByKPI}
             siteMap={siteMap}
+            sitesByCode={groupedBySite}
             vendor="HUAWEI"
           />
         )}

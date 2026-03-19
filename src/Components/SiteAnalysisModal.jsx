@@ -7,16 +7,45 @@ const SiteAnalysisModal = ({
   setSelectedDay,
   datesByKPI,
   siteMap,
+  sitesByCode,
 }) => {
   if (!selectedSite || !selectedSite.kpis) return null;
 
   const siteInfo =
     siteMap.find((s) => s.siteCode === selectedSite.siteCode) || {};
 
+  const formatField = (v) => (typeof v === "string" ? v.trim() : v);
+
+  const extractCodes = (value) => {
+    // Handles cases like:
+    // - value: "CTR_199"
+    // - value: "CTR_199, CTR_200"
+    // - value: ["CTR_199, CTR_200"]
+    if (value == null) return [];
+    const parts = Array.isArray(value) ? value : [value];
+    return Array.from(
+      new Set(
+        parts
+          .flatMap((p) => (typeof p === "string" ? p.split(",") : [p]))
+          .map((x) => (typeof x === "string" ? x.trim() : x))
+          .filter((x) => typeof x === "string" && x.length > 0 && x !== "-")
+      )
+    );
+  };
+
+  const goToSite = (siteCode) => {
+    if (!siteCode || !sitesByCode) return;
+    const next = sitesByCode[siteCode];
+    if (next && next.kpis) setSelectedSite(next);
+  };
+
   const getStatusClass = (status) =>
     ["Ok", "No Power Issues", "No Packet Loss"].includes(status)
       ? "text-green-400"
       : "text-orange-400";
+
+  const parentCodes = extractCodes(siteInfo.parentSite).filter(Boolean);
+  const childCodes = extractCodes(siteInfo.childSites);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -38,9 +67,46 @@ const SiteAnalysisModal = ({
         <p><strong>Date:</strong> {selectedDay || "Last Day"}</p>
         <p><strong>Region:</strong> {siteInfo.region || "-"}</p>
         <p><strong>Cluster:</strong> {siteInfo.cluster || "-"}</p>
-        <p><strong>Parent Site:</strong> {siteInfo.parentSite || "-"}</p>
-        <p><strong>Child Sites:</strong> {siteInfo.childSites?.join(", ") || "-"}</p>
-        <p><strong>Topology Power:</strong> {selectedSite.topologyPower || "-"}</p>
+        <p><strong>Parent Site:</strong> {parentCodes.length ? (
+          parentCodes.map((code, idx) => (
+            <React.Fragment key={`${code}-${idx}`}>
+              <button
+                type="button"
+                className="text-blue-400 underline hover:text-blue-300"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToSite(code);
+                }}
+              >
+                {code}
+              </button>
+              {idx < parentCodes.length - 1 ? <span>{", "}</span> : null}
+            </React.Fragment>
+          ))
+        ) : (
+          "-"
+        )}</p>
+        <p><strong>Child Sites:</strong> {childCodes.length ? (
+          childCodes.map((code, idx) => (
+            <React.Fragment key={`${code}-${idx}`}>
+              <button
+                type="button"
+                className="text-blue-400 underline hover:text-blue-300"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToSite(code);
+                }}
+              >
+                {code}
+              </button>
+              {idx < childCodes.length - 1 ? <span>{", "}</span> : null}
+            </React.Fragment>
+          ))
+        ) : (
+          "-"
+        )}</p>
+        <p><strong>Topology Power:</strong> {formatField(selectedSite.topologyPower) || "-"}</p>
+        <p><strong>PowerCo:</strong> {formatField(siteInfo.powerCo) || "-"}</p>
 
         <hr className="border-gray-600 my-3" />
 

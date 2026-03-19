@@ -1562,7 +1562,7 @@
     "cluster": "CSUD",
     "powerCo": "IHS",
     "topologyPower": "Grid-Gen",
-    "parentSite": "CTR_160",
+    "parentSite": "CTR_658",
     "childSites": [
       "CTR_160, CTR_213, CTR_337, CTR_370, CTR_518, CTR_520, CTR_599, CTR_658"
     ]

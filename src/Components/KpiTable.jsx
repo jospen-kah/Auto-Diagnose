@@ -68,6 +68,15 @@ const KPITable = ({
     return "";
   };
 
+  // Normalize domain values for both UI and exports
+  const normalizeDomain = (domain) => {
+    if (domain == null) return "-";
+    const s = String(domain).trim();
+    if (!s || s === "-") return "-";
+    if (/^n\s*\/\s*a$/i.test(s) || /^na$/i.test(s)) return "RAN";
+    return s;
+  };
+
 
 
   const exportToExcel = () => {
@@ -190,7 +199,7 @@ const KPITable = ({
       row.push(
         getSiteStatus ? getSiteStatus(site) : "-",
         site.priority ?? "-",
-        site.domain ?? "-",
+        normalizeDomain(site.domain),
         site.topologyPower ?? "-",
         getTechnoImpacted(site)
       );
@@ -246,7 +255,13 @@ const KPITable = ({
         if (kpi === "Alarm") row.push(site.kpis.Alarm ?? "-");
         else datesByKPI[kpi]?.forEach((d) => row.push(site.kpis?.[kpi]?.[d] ?? "-"));
       });
-      row.push(getSiteStatus ? getSiteStatus(site) : "-", site.priority ?? "-", site.domain ?? "-", site.topologyPower ?? "-", getTechnoImpacted(site));
+      row.push(
+        getSiteStatus ? getSiteStatus(site) : "-",
+        site.priority ?? "-",
+        normalizeDomain(site.domain),
+        site.topologyPower ?? "-",
+        getTechnoImpacted(site)
+      );
       wsData.push(row);
     });
 
@@ -319,7 +334,7 @@ const KPITable = ({
       // Other columns
       fullRow.push(getSiteStatus ? getSiteStatus(site) : "-");
       fullRow.push(site.priority ?? "-");
-      fullRow.push(site.domain ?? "-");
+      fullRow.push(normalizeDomain(site.domain));
       fullRow.push(site.topologyPower ?? "-");
       fullRow.push(getTechnoImpacted(site));
 
@@ -625,7 +640,7 @@ const KPITable = ({
                     {getSiteStatus ? getSiteStatus(site) : "-"}
                   </td>
                   <td {...cellHandlers(rIdx, cIdx++)}>{site.priority ?? "-"}</td>
-                  <td {...cellHandlers(rIdx, cIdx++)}>{site.domain ?? "-"}</td>
+                  <td {...cellHandlers(rIdx, cIdx++)}>{normalizeDomain(site.domain)}</td>
                   <td {...cellHandlers(rIdx, cIdx++)}>{site.topologyPower ?? "-"}</td>
                   <td {...cellHandlers(rIdx, cIdx++)}>{getTechnoImpacted(site)}</td>
                 </tr>

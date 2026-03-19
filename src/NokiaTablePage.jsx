@@ -144,6 +144,14 @@ const NokiaTablePage = () => {
     site.status = getSiteStatus(site, datesByKPI);
   });
 
+  const normalizeDomainForFilter = (domain) => {
+    if (domain == null) return "-";
+    const s = String(domain).trim();
+    if (!s || s === "-") return "-";
+    if (/^n\s*\/\s*a$/i.test(s) || /^na$/i.test(s)) return "RAN";
+    return s;
+  };
+
   /* ================= FILTERING ================= */
   const filteredSites = Object.values(groupedBySite).filter((site) => {
     const searchMatch =
@@ -151,13 +159,16 @@ const NokiaTablePage = () => {
       site.siteName.toLowerCase().includes(search.toLowerCase());
 
     const statusMatch =
-      statusFilter === "ALL" || site.status === statusFilter;
+      statusFilter === "ALL" ||
+      String(site.status).toLowerCase() === String(statusFilter).toLowerCase();
 
     const priorityMatch =
-      priorityFilter === "ALL" || site.priority === priorityFilter;
+      priorityFilter === "ALL" ||
+      String(site.priority ?? "-").toLowerCase() ===
+        String(priorityFilter).toLowerCase();
 
     const domainMatch =
-      domainFilter === "ALL" || site.domain === domainFilter;
+      domainFilter === "ALL" || normalizeDomainForFilter(site.domain) === domainFilter;
 
     return searchMatch && statusMatch && priorityMatch && domainMatch;
   });
@@ -199,6 +210,7 @@ const NokiaTablePage = () => {
           setSelectedDay={setSelectedDay}
           datesByKPI={datesByKPI}
           siteMap={siteMap}
+          sitesByCode={groupedBySite}
           vendor="NOKIA"
         />
       )}

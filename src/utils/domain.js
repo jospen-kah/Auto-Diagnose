@@ -34,5 +34,6 @@ export const getDomainAndPriority = (site, datesByKPI) => {
   }
 
   // ================= N/A =================
-  return { domain: "N/A", priority: "OK" };
+  // Treat "N/A" as RAN for UI + filtering consistency
+  return { domain: "RAN", priority: "OK" };
 };

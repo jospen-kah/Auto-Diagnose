@@ -67,6 +67,9 @@ export const getDomainAndPriorityZTE = (site, datesByKPI) => {
     domain = "RAN";
   }
 
+  // If nothing is degraded, treat "N/A" as RAN for UI + filtering consistency
+  if (domain === "N/A") domain = "RAN";
+
   /* ===============================
      🚦 PRIORITY
   =============================== */
