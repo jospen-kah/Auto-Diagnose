@@ -1,1 +1,44 @@
 @import "tailwindcss";
+
+/* Light/Dark overrides (light mode is the only one that needs custom colors) */
+.theme-light .bg-gray-950,
+.theme-light .bg-gray-900,
+.theme-light .bg-gray-800,
+.theme-light .bg-gray-700,
+.theme-light .bg-slate-800 {
+  background-color: #f8fafc !important;
+}
+
+.theme-light .bg-gray-900\/60,
+.theme-light .bg-black\/60 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.theme-light .text-white,
+.theme-light .text-gray-300,
+.theme-light .text-gray-400 {
+  color: #0f172a !important;
+}
+
+.theme-light .border-gray-700,
+.theme-light .border-gray-600,
+.theme-light .border-gray-800,
+.theme-light .border-gray-700\/50 {
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light .text-blue-400 {
+  color: #1d4ed8 !important;
+}
+
+/* Make filter inputs/selects clearly visible on light mode */
+.theme-light input,
+.theme-light select {
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  background-color: #f8fafc !important;
+}
+
+.theme-light input::placeholder {
+  color: #64748b !important;
+}

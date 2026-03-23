@@ -121,9 +121,12 @@ export const parseNokiaData = (rows, kpiType, existingSiteCodes = []) => {
 
     rows.forEach((row) => {
       const alarmName = row["Alarm Name"];
-      const alarmSource = row["Alarm Source"] || "";
+      // Nokia "Site ID" can contain both name + site code. We must extract the real site code.
+      const siteIdRaw = row["Site ID"] || row["Site Id"] || "";
+      const alarmSourceRaw = row["Alarm Source"] || "";
 
-      const siteCode = extractSiteCode(alarmSource);
+      const siteCode =
+        extractSiteCode(siteIdRaw) || extractSiteCode(alarmSourceRaw);
       if (!siteCode) return;
 
       extractedCount++;
