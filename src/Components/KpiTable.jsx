@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 const KPITable = ({
@@ -80,10 +81,9 @@ const KPITable = ({
 
 
 
-  const exportToExcel = () => {
-    const wb = XLSX.utils.book_new();
-    const wsData = [];
-    const wsStyles = [];
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("KPI Report");
 
     /* ===== HEADER ===== */
     const header = [
@@ -100,135 +100,114 @@ const KPITable = ({
       "Techno Impacted",
     ];
 
-    wsData.push(header);
-    wsStyles.push(header.map(() => ({ font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "FFFFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "FF1F2937" } } })));
+    worksheet.columns = header.map(() => ({ width: 18 }));
 
-    /* helper to map our class colors to XLSX style objects */
-    const classToStyle = (cls) => {
-      if (!cls) return {};
-      // Base style shape that is XLSX-safe
-      const base = {
-        font: { name: "Calibri", sz: 11, color: { rgb: "FF000000" } },
-        fill: { patternType: "solid", fgColor: { rgb: "FFFFFFFF" } },
-        alignment: { horizontal: "center", vertical: "center" },
+    worksheet.addRow(header);
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.alignment = { horizontal: "center", vertical: "middle" };
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF1F2937" },
       };
+    });
 
-      if (cls.includes("bg-green-500")) {
-        return {
-          font: { name: "Calibri", sz: 11, color: { rgb: "FFFFFFFF" } },
-          fill: { patternType: "solid", fgColor: { rgb: "FF16A34A" } },
-          alignment: { horizontal: "center", vertical: "center" },
-        };
-      }
-      if (cls.includes("bg-yellow-400")) {
-        return {
-          font: { name: "Calibri", sz: 11, color: { rgb: "FF000000" } },
-          fill: { patternType: "solid", fgColor: { rgb: "FFF59E0B" } },
-          alignment: { horizontal: "center", vertical: "center" },
-        };
-      }
-      if (cls.includes("bg-orange-500")) {
-        return {
-          font: { name: "Calibri", sz: 11, color: { rgb: "FFFFFFFF" } },
-          fill: { patternType: "solid", fgColor: { rgb: "FFFB923C" } },
-          alignment: { horizontal: "center", vertical: "center" },
-        };
-      }
-      if (cls.includes("bg-red-600")) {
-        return {
-          font: { name: "Calibri", sz: 11, color: { rgb: "FFFFFFFF" } },
-          fill: { patternType: "solid", fgColor: { rgb: "FFDC2626" } },
-          alignment: { horizontal: "center", vertical: "center" },
-        };
-      }
-
-      return base;
+    const clsToFill = (cls) => {
+      if (!cls) return null;
+      if (cls.includes("bg-green-500")) return { argb: "FF16A34A", font: { argb: "FFFFFFFF" } };
+      if (cls.includes("bg-yellow-400")) return { argb: "FFF59E0B", font: { argb: "FF000000" } };
+      if (cls.includes("bg-orange-500")) return { argb: "FFFB923C", font: { argb: "FFFFFFFF" } };
+      if (cls.includes("bg-red-600")) return { argb: "FFDC2626", font: { argb: "FFFFFFFF" } };
+      return null;
     };
 
-    /* ===== ROWS (FILTERED ONLY) ===== */
-    visibleSites.forEach((site, rIdx) => {
-      const row = [rIdx + 1, site.siteCode, site.siteName];
-      const rowStyles = [
-        { alignment: { horizontal: "center" } },
-        { alignment: { horizontal: "center" } },
-        { alignment: { horizontal: "left" } },
-      ];
+    const baseFont = { name: "Calibri", size: 11 };
 
+    visibleSites.forEach((site, rIdx) => {
+      const rowNumber = rIdx + 2; // +1 for header row
+
+      let col = 1;
+
+      // #, Site Code, Site Name
+      worksheet.getCell(rowNumber, col++).value = rIdx + 1;
+      worksheet.getCell(rowNumber, col++).value = site.siteCode;
+      const nameCell = worksheet.getCell(rowNumber, col++);
+      nameCell.value = site.siteName;
+
+      // Styling basics for first columns
+      worksheet.getCell(rowNumber, 1).alignment = { horizontal: "center", vertical: "middle" };
+      worksheet.getCell(rowNumber, 2).alignment = { horizontal: "center", vertical: "middle" };
+      nameCell.alignment = { horizontal: "left", vertical: "middle" };
+
+      // KPIs
       displayKPIs.forEach((kpi) => {
         if (kpi === "Alarm") {
-          row.push(site.kpis.Alarm ?? "-");
-          rowStyles.push({ alignment: { horizontal: "center" } });
-        } else {
-          datesByKPI[kpi]?.forEach((d) => {
-            let v = site.kpis?.[kpi]?.[d] ?? "-";
+          const cell = worksheet.getCell(rowNumber, col++);
+          cell.value = site.kpis.Alarm ?? "-";
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+          cell.font = { ...baseFont, bold: true, color: { argb: "FFFFFFFF" } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDC2626" } };
+          return;
+        }
 
-            // Prepare cell value and style
-            let cellValue = v;
-            const cls = getCellColor(kpi, v);
-            let style = classToStyle(cls);
+        datesByKPI[kpi]?.forEach((d) => {
+          const rawValue = site.kpis?.[kpi]?.[d] ?? "-";
+          const cell = worksheet.getCell(rowNumber, col++);
 
-            // Normalize Packet Loss to numeric fraction and apply percent format
-            if (kpi === "Packet Loss" && v !== "-" && v != null) {
-              let parsed = null;
-              if (typeof v === "string" && v.trim().endsWith("%")) {
-                const n = parseFloat(v.replace("%", "").trim());
-                if (!isNaN(n)) parsed = n / 100;
-              } else if (!isNaN(Number(v))) {
-                const n = Number(v);
-                // If value looks like a whole percent (e.g., 12.3) convert to fraction
-                parsed = Math.abs(n) <= 1 ? n : n / 100;
-              }
+          // Determine display value + Excel numeric typing
+          let valueToWrite = rawValue;
+          let numFmt = undefined;
 
-              if (parsed !== null) {
-                cellValue = parsed; // numeric fraction for Excel
-                style = { ...style, numFmt: "0.00%" };
-              }
-            } else {
-              // For other numeric-looking KPI values, coerce to number for proper typing
-              if (typeof v === "string" && v !== "-" && !isNaN(Number(v))) {
-                cellValue = Number(v);
-              }
+          if (kpi === "Packet Loss" && rawValue !== "-" && rawValue != null) {
+            let parsed = null;
+            if (typeof rawValue === "string" && rawValue.trim().endsWith("%")) {
+              const n = parseFloat(rawValue.replace("%", "").trim());
+              if (!isNaN(n)) parsed = n / 100;
+            } else if (!isNaN(Number(rawValue))) {
+              const n = Number(rawValue);
+              parsed = Math.abs(n) <= 1 ? n : n / 100;
             }
 
-            row.push(cellValue);
-            rowStyles.push(style);
-          });
-        }
+            if (parsed !== null) {
+              valueToWrite = parsed;
+              numFmt = "0.00%";
+            }
+          } else if (typeof rawValue === "string" && rawValue !== "-" && !isNaN(Number(rawValue))) {
+            valueToWrite = Number(rawValue);
+          }
+
+          cell.value = valueToWrite;
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+          cell.font = { ...baseFont };
+          if (numFmt) cell.numFmt = numFmt;
+
+          const cls = getCellColor(kpi, rawValue);
+          const fill = clsToFill(cls);
+          if (fill) {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: fill };
+            cell.font = { ...baseFont, color: fill.font };
+          }
+        });
       });
 
       // Other columns
-      row.push(
-        getSiteStatus ? getSiteStatus(site) : "-",
-        site.priority ?? "-",
-        normalizeDomain(site.domain),
-        site.topologyPower ?? "-",
-        getTechnoImpacted(site)
-      );
-      // add default styles for trailing columns
-      rowStyles.push({ alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } }, { alignment: { horizontal: "center" } });
+      const status = getSiteStatus ? getSiteStatus(site) : "-";
+      worksheet.getCell(rowNumber, col++).value = status;
+      worksheet.getCell(rowNumber, col++).value = site.priority ?? "-";
+      worksheet.getCell(rowNumber, col++).value = normalizeDomain(site.domain);
+      worksheet.getCell(rowNumber, col++).value = site.topologyPower ?? "-";
+      worksheet.getCell(rowNumber, col++).value = getTechnoImpacted(site);
 
-      wsData.push(row);
-      wsStyles.push(rowStyles);
+      // Align trailing columns
+      for (let c = 4; c < header.length + 1; c++) {
+        const cell = worksheet.getCell(rowNumber, c);
+        if (!cell.alignment) cell.alignment = { horizontal: "center", vertical: "middle" };
+      }
     });
 
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = header.map(() => ({ wch: 18 }));
-
-    // Apply styles cell-by-cell
-    for (let r = 0; r < wsStyles.length; r++) {
-      const stylesRow = wsStyles[r] || [];
-      for (let c = 0; c < stylesRow.length; c++) {
-        const style = stylesRow[c];
-        if (!style || Object.keys(style).length === 0) continue;
-        const cellAddress = XLSX.utils.encode_cell({ r, c });
-        const cell = ws[cellAddress];
-        if (cell) cell.s = style;
-      }
-    }
-
-    XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array", cellStyles: true });
+    const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer], { type: "application/octet-stream" }), "KPI_Report.xlsx");
   };
 
