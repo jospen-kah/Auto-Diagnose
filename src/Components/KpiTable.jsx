@@ -86,21 +86,23 @@ const KPITable = ({
     const worksheet = workbook.addWorksheet("KPI Report");
 
     /* ===== HEADER ===== */
-    const header = [
-      "#",
-      "Site Code",
-      "Site Name",
-      ...displayKPIs.flatMap((k) =>
-        k === "Alarm" ? ["Alarm"] : datesByKPI[k]?.map((d) => `${k} ${d}`) || []
-      ),
-      "Status",
-      "Priority",
-      "Domain",
-      "Topology Power",
-      "Techno Impacted",
-    ];
+    const header = [];
+    header.push("#", "Site Code", "Site Name");
 
-    worksheet.columns = header.map(() => ({ width: 18 }));
+    displayKPIs.forEach((kpi, kpiIdx) => {
+      if (kpi === "Alarm") {
+        header.push("Alarm");
+      } else {
+        (datesByKPI[kpi] || []).forEach((d) => header.push(`${kpi} ${d}`));
+      }
+
+      // Gap column after each KPI group (except last)
+      if (kpiIdx < displayKPIs.length - 1) header.push("");
+    });
+
+    header.push("Status", "Priority", "Domain", "Topology Power", "Techno Impacted");
+
+    worksheet.columns = header.map((h) => ({ width: h === "" ? 4 : 18 }));
 
     worksheet.addRow(header);
     const headerRow = worksheet.getRow(1);
@@ -132,7 +134,8 @@ const KPITable = ({
 
       // #, Site Code, Site Name
       worksheet.getCell(rowNumber, col++).value = rIdx + 1;
-      worksheet.getCell(rowNumber, col++).value = site.siteCode;
+      const siteCodeCell = worksheet.getCell(rowNumber, col++);
+      siteCodeCell.value = site.siteCode;
       const nameCell = worksheet.getCell(rowNumber, col++);
       nameCell.value = site.siteName;
 
@@ -140,56 +143,65 @@ const KPITable = ({
       worksheet.getCell(rowNumber, 1).alignment = { horizontal: "center", vertical: "middle" };
       worksheet.getCell(rowNumber, 2).alignment = { horizontal: "center", vertical: "middle" };
       nameCell.alignment = { horizontal: "left", vertical: "middle" };
+      siteCodeCell.font = { ...baseFont, color: { argb: "FF3B82F6" } };
+      nameCell.font = { ...baseFont, color: { argb: "FF3B82F6" } };
 
       // KPIs
-      displayKPIs.forEach((kpi) => {
+      displayKPIs.forEach((kpi, kpiIdx) => {
         if (kpi === "Alarm") {
           const cell = worksheet.getCell(rowNumber, col++);
           cell.value = site.kpis.Alarm ?? "-";
           cell.alignment = { horizontal: "center", vertical: "middle" };
           cell.font = { ...baseFont, bold: true, color: { argb: "FFFFFFFF" } };
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDC2626" } };
-          return;
+        } else {
+          datesByKPI[kpi]?.forEach((d) => {
+            const rawValue = site.kpis?.[kpi]?.[d] ?? "-";
+            const cell = worksheet.getCell(rowNumber, col++);
+
+            // Determine display value + Excel numeric typing
+            let valueToWrite = rawValue;
+            let numFmt = undefined;
+
+            if (kpi === "Packet Loss" && rawValue !== "-" && rawValue != null) {
+              let parsed = null;
+              if (typeof rawValue === "string" && rawValue.trim().endsWith("%")) {
+                const n = parseFloat(rawValue.replace("%", "").trim());
+                if (!isNaN(n)) parsed = n / 100;
+              } else if (!isNaN(Number(rawValue))) {
+                const n = Number(rawValue);
+                parsed = Math.abs(n) <= 1 ? n : n / 100;
+              }
+
+              if (parsed !== null) {
+                valueToWrite = parsed;
+                numFmt = "0.00%";
+              }
+            } else if (typeof rawValue === "string" && rawValue !== "-" && !isNaN(Number(rawValue))) {
+              valueToWrite = Number(rawValue);
+            }
+
+            cell.value = valueToWrite;
+            cell.alignment = { horizontal: "center", vertical: "middle" };
+            cell.font = { ...baseFont };
+            if (numFmt) cell.numFmt = numFmt;
+
+            const cls = getCellColor(kpi, rawValue);
+            const fill = clsToFill(cls);
+            if (fill) {
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: fill };
+              cell.font = { ...baseFont, color: fill.font };
+            }
+          });
         }
 
-        datesByKPI[kpi]?.forEach((d) => {
-          const rawValue = site.kpis?.[kpi]?.[d] ?? "-";
-          const cell = worksheet.getCell(rowNumber, col++);
-
-          // Determine display value + Excel numeric typing
-          let valueToWrite = rawValue;
-          let numFmt = undefined;
-
-          if (kpi === "Packet Loss" && rawValue !== "-" && rawValue != null) {
-            let parsed = null;
-            if (typeof rawValue === "string" && rawValue.trim().endsWith("%")) {
-              const n = parseFloat(rawValue.replace("%", "").trim());
-              if (!isNaN(n)) parsed = n / 100;
-            } else if (!isNaN(Number(rawValue))) {
-              const n = Number(rawValue);
-              parsed = Math.abs(n) <= 1 ? n : n / 100;
-            }
-
-            if (parsed !== null) {
-              valueToWrite = parsed;
-              numFmt = "0.00%";
-            }
-          } else if (typeof rawValue === "string" && rawValue !== "-" && !isNaN(Number(rawValue))) {
-            valueToWrite = Number(rawValue);
-          }
-
-          cell.value = valueToWrite;
-          cell.alignment = { horizontal: "center", vertical: "middle" };
-          cell.font = { ...baseFont };
-          if (numFmt) cell.numFmt = numFmt;
-
-          const cls = getCellColor(kpi, rawValue);
-          const fill = clsToFill(cls);
-          if (fill) {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: fill };
-            cell.font = { ...baseFont, color: fill.font };
-          }
-        });
+        // Gap column after each KPI group (except last)
+        if (kpiIdx < displayKPIs.length - 1) {
+          const spacerCell = worksheet.getCell(rowNumber, col++);
+          spacerCell.value = "";
+          spacerCell.alignment = { horizontal: "center", vertical: "middle" };
+          spacerCell.font = { ...baseFont };
+        }
       });
 
       // Other columns
@@ -206,6 +218,18 @@ const KPITable = ({
         if (!cell.alignment) cell.alignment = { horizontal: "center", vertical: "middle" };
       }
     });
+
+    // Borders for the whole table (including spacer columns)
+    const lastRow = visibleSites.length + 1; // + header
+    const lastCol = header.length;
+    const borderColor = { argb: "FF374151" };
+    const thin = { style: "thin", color: borderColor };
+    for (let r = 1; r <= lastRow; r++) {
+      for (let c = 1; c <= lastCol; c++) {
+        const cell = worksheet.getCell(r, c);
+        cell.border = { top: thin, left: thin, bottom: thin, right: thin };
+      }
+    }
 
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer], { type: "application/octet-stream" }), "KPI_Report.xlsx");
