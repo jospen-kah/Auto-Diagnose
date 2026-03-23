@@ -57,9 +57,12 @@ const Filters = ({
         className="bg-gray-800 px-3 py-2 rounded"
       >
         <option value="ALL">All Domains</option>
-        <option value="RAN">RAN</option>
+        <option value="RAN-ZTE">RAN-ZTE</option>
+        <option value="RAN-HUAWEI">RAN-HUAWEI</option>
+        <option value="RAN-NOKIA">RAN-NOKIA</option>
         <option value="Power">Power</option>
-        <option value="TX">TX</option>
+        <option value="BO TX">BO TX</option>
+        <option value="Rural Power">Rural Power</option>
       </select>
 
       <button

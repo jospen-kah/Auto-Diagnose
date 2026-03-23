@@ -5,7 +5,7 @@ import KPITable from "./Components/KpiTable.jsx";
 import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
 import siteMap from "./utils/sites_full.json";
 import { getSitePriority } from "./utils/sitePriority";
-import { getDomainAndPriority } from "./utils/domain";
+import { getDomainAndPriorityNokia } from "./utils/domain";
 
 const STORAGE_META_KEY = "NOKIA_TABLE_META";
 
@@ -23,18 +23,25 @@ const getSiteStatus = (site, datesByKPI) => {
     site.kpis["4G"]?.[d4],
   ];
 
+  // If one tech is "-" (or missing) and the other two are exactly 0 => Down
+  const hasDash = raw.some((v) => v === "-" || v == null);
+  const otherZeros = raw
+    .filter((v) => !(v === "-" || v == null))
+    .every((v) => Number(v) === 0);
+  if (hasDash && otherZeros) return "Down";
+
   const values = raw.map(v => {
     if (v === "-" || v == null || v === "NaN" || v === "NAN") return NaN;
     return Number(v);
   });
 
   const hasNaN = values.some(v => Number.isNaN(v));
-  const allZeroOrDash = values.every(v => isNaN(v) || v === 0);
 
   // ✅ DOWN
-  if (hasNaN && allZeroOrDash) return "Down";       // NaN + 0/- scenario
-  if (allZeroOrDash) return "Down";                // all 0 or -
-  if (hasNaN && !values.some(v => !Number.isNaN(v) && v > 0)) return "Down"; // only NaN + 0/-
+  // Treat "-" as NaN and consider KPIs "< 5" as down as well.
+  const allBelow5OrDash = values.every((v) => isNaN(v) || v < 5);
+  if (hasNaN && allBelow5OrDash) return "Down"; // preserve NaN + low KPIs behavior
+  if (allBelow5OrDash) return "Down";
 
   // ✅ DEGRADED
   // At least one tech >0 and <97 OR at least one tech >0 and rest are 0/- (worst case)
@@ -132,10 +139,20 @@ const NokiaTablePage = () => {
 
       // ✅ METADATA (NO STATUS HERE)
       site.priority = getSitePriority(site, datesByKPI);
-      site.domain = getDomainAndPriority(site, datesByKPI).domain;
+      const { domain } = getDomainAndPriorityNokia(site, datesByKPI);
+      site.domain = domain;
 
       const info = siteMap.find((s) => s.siteCode === siteCode) || {};
       site.topologyPower = info.topologyPower || "-";
+
+      site.comment =
+        String(domain).startsWith("RAN")
+          ? "BO Analysis Needed"
+          : domain === "Power" || domain === "Rural Power"
+          ? "Verify the alimentation chain"
+          : domain === "BO TX"
+          ? "Verify the congestion status of the link carrying the site; verify that the site is not affected by an energy/power issue on the host site; verify the status of the channels and alarms on the transmission chain"
+          : "-";
     });
   });
 
@@ -148,6 +165,7 @@ const NokiaTablePage = () => {
     if (domain == null) return "-";
     const s = String(domain).trim();
     if (!s || s === "-") return "-";
+    if (/^tx$/i.test(s)) return "BO TX";
     if (/^n\s*\/\s*a$/i.test(s) || /^na$/i.test(s)) return "RAN";
     return s;
   };

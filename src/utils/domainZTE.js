@@ -56,19 +56,26 @@ export const getDomainAndPriorityZTE = (site, datesByKPI) => {
   /* ===============================
      🧠 DOMAIN LOGIC (ZTE)
   =============================== */
+  // "contains packet loss" aligns with your UI thresholds:
+  // Site analysis treats < 0.5 as "No Packet Loss", >= 0.5 as packet loss available.
+  const packetLossAvailable = packetLoss != null && packetLoss > 0.5;
+  const powerIssue = anyTechDegraded && voltage !== null && voltage < 45000;
+  const siteName = String(site?.siteName ?? "");
+  const isRuralZte = siteName.toUpperCase().includes("URZ");
 
-  let domain = "N/A";
+  // Default = RAN case
+  let domain = "RAN-ZTE";
 
-  if (allTechsDegraded) {
-    domain = "TX";
-  } else if (anyTechDegraded && voltage !== null && voltage < 45000) {
+  // Rural Power override (ZTE)
+  if (isRuralZte && anyTechDegraded && powerIssue) {
+    domain = "Rural Power";
+  } else
+  // Huawei + ZTE rule: all techs degraded + packet loss + power issue => TX
+  if (allTechsDegraded && packetLossAvailable && powerIssue) {
+    domain = "BO TX";
+  } else if (powerIssue) {
     domain = "Power";
-  } else if (anyTechDegraded) {
-    domain = "RAN";
   }
-
-  // If nothing is degraded, treat "N/A" as RAN for UI + filtering consistency
-  if (domain === "N/A") domain = "RAN";
 
   /* ===============================
      🚦 PRIORITY

@@ -74,6 +74,7 @@ const KPITable = ({
     const s = String(domain).trim();
     if (!s || s === "-") return "-";
     if (/^n\s*\/\s*a$/i.test(s) || /^na$/i.test(s)) return "RAN";
+    if (/^tx$/i.test(s)) return "BO TX";
     return s;
   };
 
@@ -434,7 +435,8 @@ const KPITable = ({
       const raw = site.kpis?.[tech]?.[lastDate];
       const value = raw === "-" || raw == null || raw === "NaN" ? NaN : Number(raw);
 
-      if (value > 0 && value < 97) impacted.push(tech);
+      // Include 0 as degraded (e.g., 100/100/0 => degraded on 0 tech)
+      if (!Number.isNaN(value) && value >= 0 && value < 97) impacted.push(tech);
     });
 
     return impacted.join(", ") || "-";

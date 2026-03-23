@@ -99,12 +99,12 @@
         site.topologyPower = siteInfo.topologyPower || "-";
 
         site.comment =
-          domain === "RAN"
-            ? "BO Analysis needed"
-            : domain === "Power"
+          String(domain).startsWith("RAN")
+            ? "BO Analysis Needed"
+            : domain === "Power" || domain === "Rural Power"
             ? "Verify the alimentation chain"
-            : domain === "TX"
-            ? "verifier l'etat de congestion du lien portant le site; verifier si le site n'est pas impacté par un probleme d energie sur le site porteur; verifier l'etat des canaux et des alarmes sur la chaine de transmission"
+            : domain === "BO TX"
+            ? "Verify the congestion status of the link carrying the site; verify that the site is not affected by an energy/power issue on the host site; verify the status of the channels and alarms on the transmission chain"
             : "-";
       });
     });
@@ -123,7 +123,16 @@
         v === "-" || v == null ? 0 : Number(v)
       );
 
-      if (values.every((v) => v === 0)) return "Down";
+      // If one tech is "-" and the other two are exactly 0 => Down
+      const raw = [v2, v3, v4];
+      const hasDash = raw.some((v) => v === "-" || v == null);
+      const otherZeros = raw
+        .filter((v) => !(v === "-" || v == null))
+        .every((v) => Number(v) === 0);
+      if (hasDash && otherZeros) return "Down";
+
+      // Treat very low KPIs (< 5) as "Down"
+      if (values.every((v) => v < 5)) return "Down";
       if (values.some((v) => v < 97)) return "Degraded";
       return "Ok";
     };
@@ -132,6 +141,7 @@
     if (domain == null) return "-";
     const s = String(domain).trim();
     if (!s || s === "-") return "-";
+    if (/^tx$/i.test(s)) return "BO TX";
     if (/^n\s*\/\s*a$/i.test(s) || /^na$/i.test(s)) return "RAN";
     return s;
   };

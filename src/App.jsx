@@ -85,7 +85,7 @@ const App = () => {
 
         {/* Footer */}
         <footer className="bg-slate-800 text-gray-300 text-center py-4 mt-8 rounded-t-lg">
-          &copy; {new Date().getFullYear()} by MSP/OCM Service Desk, Autodiagnose (V1.0)
+          &copy; {new Date().getFullYear()} by MSP/OCM Service Desk, Autodiagnose (V1.1)
         </footer>
       </div>
     </Router>
