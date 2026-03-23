@@ -46,8 +46,8 @@ export const getDomainAndPriority = (site, datesByKPI) => {
     return { domain: "Rural Power", priority: "P0" };
   }
 
-  // Huawei + ZTE: all degraded + packet loss + power issue => TX
-  if (allTechsDegraded && packetLossAvailable && powerIssue) {
+  // Huawei + ZTE: all degraded + packet loss => TX
+  if (allTechsDegraded && packetLossAvailable) {
     return { domain: "BO TX", priority: "P0" };
   }
 

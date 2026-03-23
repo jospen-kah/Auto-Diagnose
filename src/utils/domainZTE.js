@@ -71,8 +71,8 @@ export const getDomainAndPriorityZTE = (site, datesByKPI) => {
   if (isRuralZte && anyTechDegraded && powerIssue) {
     domain = "Rural Power";
   } else
-  // Huawei + ZTE rule: all techs degraded + packet loss + power issue => TX
-  if (allTechsDegraded && packetLossAvailable && powerIssue) {
+  // ZTE: all techs degraded + packet loss => TX
+  if (allTechsDegraded && packetLossAvailable) {
     domain = "BO TX";
   } else if (powerIssue) {
     domain = "Power";
