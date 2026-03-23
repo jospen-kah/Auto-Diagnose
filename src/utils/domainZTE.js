@@ -59,7 +59,8 @@ export const getDomainAndPriorityZTE = (site, datesByKPI) => {
   // "contains packet loss" aligns with your UI thresholds:
   // Site analysis treats < 0.5 as "No Packet Loss", >= 0.5 as packet loss available.
   const packetLossAvailable = packetLoss != null && packetLoss > 0.5;
-  const powerIssue = anyTechDegraded && voltage !== null && voltage < 45000;
+  // Voltage=0 => RAN (no Power issue)
+  const powerIssue = anyTechDegraded && voltage !== null && voltage > 0 && voltage < 45000;
   const siteName = String(site?.siteName ?? "");
   const isRuralZte = siteName.toUpperCase().includes("URZ");
 

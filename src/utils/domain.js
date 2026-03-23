@@ -34,7 +34,8 @@ export const getDomainAndPriority = (site, datesByKPI) => {
   const { anyTechDegraded, allTechsDegraded } = getTechDegradationFlags(site, lastDay);
 
   const voltage = parseNumberOrNull(site.kpis?.["Voltage"]?.[lastDay]);
-  const powerIssue = anyTechDegraded && voltage != null && voltage < 45000;
+  // Voltage=0 => RAN (no Power issue)
+  const powerIssue = anyTechDegraded && voltage != null && voltage > 0 && voltage < 45000;
   const siteName = String(site?.siteName ?? "");
   const isRuralHuawei = siteName.toUpperCase().includes("URH");
 
@@ -70,7 +71,8 @@ export const getDomainAndPriorityNokia = (site, datesByKPI) => {
   const { anyTechDegraded, allTechsDegraded } = getTechDegradationFlags(site, lastDay);
 
   const voltage = parseNumberOrNull(site.kpis?.["Voltage"]?.[lastDay]);
-  const voltageIssue = voltage != null && voltage < 45000;
+  // Voltage=0 => RAN (no Power issue)
+  const voltageIssue = voltage != null && voltage > 0 && voltage < 45000;
   const powerIssue = anyTechDegraded && voltageIssue;
 
   // Nokia: all techs degraded + NO voltage issues => TX
