@@ -57,6 +57,7 @@ const Filters = ({
         className="bg-gray-800 px-3 py-2 rounded"
       >
         <option value="ALL">All Domains</option>
+        <option value="Ok">Ok</option>
         <option value="RAN-ZTE">RAN-ZTE</option>
         <option value="RAN-HUAWEI">RAN-HUAWEI</option>
         <option value="RAN-NOKIA">RAN-NOKIA</option>

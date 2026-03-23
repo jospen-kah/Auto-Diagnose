@@ -113,6 +113,7 @@ const ZTETablePage = () => {
     if (isEmpty) return [];
     return Object.values(groupedBySite).filter((site) => {
       const status = getSiteStatus(site);
+      const domainForDisplay = status === "Ok" ? "Ok" : site.domain;
       if (
         statusFilter !== "ALL" &&
         String(status).toLowerCase() !== String(statusFilter).toLowerCase()
@@ -126,11 +127,15 @@ const ZTETablePage = () => {
         return false;
       if (
         domainFilter !== "ALL" &&
-        normalizeDomainForFilter(site.domain) !== domainFilter
+        normalizeDomainForFilter(domainForDisplay) !== domainFilter
       )
         return false;
       const s = search.toLowerCase();
       if (s && !(site.siteCode.toLowerCase().includes(s) || site.siteName.toLowerCase().includes(s))) return false;
+      if (status === "Ok") {
+        site.domain = "Ok";
+        site.comment = "-";
+      }
       return true;
     });
   }, [groupedBySite, search, statusFilter, priorityFilter, domainFilter, isEmpty]);

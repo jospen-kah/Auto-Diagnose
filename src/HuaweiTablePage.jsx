@@ -149,6 +149,7 @@
     /* ================= FILTERED SITES ================= */
     const filteredSites = Object.values(groupedBySite).filter((site) => {
       const status = getSiteStatus(site);
+      const domainForDisplay = status === "Ok" ? "Ok" : site.domain;
 
       if (
         statusFilter !== "ALL" &&
@@ -163,7 +164,7 @@
         return false;
       if (
         domainFilter !== "ALL" &&
-        normalizeDomainForFilter(site.domain) !== domainFilter
+        normalizeDomainForFilter(domainForDisplay) !== domainFilter
       )
         return false;
 
@@ -176,6 +177,11 @@
         )
       )
         return false;
+
+      if (status === "Ok") {
+        site.domain = "Ok";
+        site.comment = "-";
+      }
 
       return true;
     });

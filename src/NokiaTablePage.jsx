@@ -185,10 +185,18 @@ const NokiaTablePage = () => {
       String(site.priority ?? "-").toLowerCase() ===
         String(priorityFilter).toLowerCase();
 
+    const domainForDisplay = site.status === "Ok" ? "Ok" : site.domain;
     const domainMatch =
-      domainFilter === "ALL" || normalizeDomainForFilter(site.domain) === domainFilter;
+      domainFilter === "ALL" ||
+      normalizeDomainForFilter(domainForDisplay) === domainFilter;
 
-    return searchMatch && statusMatch && priorityMatch && domainMatch;
+    const shouldInclude = searchMatch && statusMatch && priorityMatch && domainMatch;
+    if (shouldInclude && site.status === "Ok") {
+      site.domain = "Ok";
+      site.comment = "-";
+    }
+
+    return shouldInclude;
   });
 
   /* ================= UI ================= */
