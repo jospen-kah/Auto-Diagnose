@@ -82,6 +82,19 @@ const KPITable = ({
 
 
   const exportToExcel = async () => {
+    const defaultFileName = "KPI_Report.xlsx";
+    const suggested = window.prompt(
+      "Enter the file name to export (you can omit the .xlsx extension):",
+      "KPI_Report"
+    );
+    const rawName = (suggested ?? "").trim();
+    const safeName = rawName
+      ? rawName.replace(/[\\/:*?"<>|]/g, "_")
+      : defaultFileName.replace(/\.xlsx$/i, "");
+    const fileName = safeName.toLowerCase().endsWith(".xlsx")
+      ? safeName
+      : `${safeName}.xlsx`;
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("KPI Report");
 
@@ -232,7 +245,7 @@ const KPITable = ({
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: "application/octet-stream" }), "KPI_Report.xlsx");
+    saveAs(new Blob([buffer], { type: "application/octet-stream" }), fileName);
   };
 
   const exportToCSV = () => {
