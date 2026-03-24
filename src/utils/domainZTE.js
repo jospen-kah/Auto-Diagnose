@@ -70,12 +70,12 @@ export const getDomainAndPriorityZTE = (site, datesByKPI) => {
   // Rural Power override (ZTE)
   if (isRuralZte && anyTechDegraded && powerIssue) {
     domain = "Rural Power";
-  } else
-  // ZTE: all techs degraded + packet loss => TX
-  if (allTechsDegraded && packetLossAvailable) {
-    domain = "BO TX";
   } else if (powerIssue) {
+    // Power has priority
     domain = "Power";
+  } else if (allTechsDegraded && packetLossAvailable && !powerIssue) {
+    // BO TX only when all degraded + packet loss and no power issue
+    domain = "BO TX";
   }
 
   /* ===============================
