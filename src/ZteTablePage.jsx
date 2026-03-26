@@ -8,6 +8,7 @@ import siteMap from "./utils/sites_full.json";
 import Filters from "./Components/filter.jsx";
 import KPITable from "./Components/KpiTable.jsx";
 import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
+import Graphs from "./Components/Graphs.jsx";
 
 const ZTETablePage = () => {
   const location = useLocation();
@@ -152,6 +153,12 @@ const ZTETablePage = () => {
 
   return (
     <div className="w-screen h-screen bg-gray-900 text-white flex flex-col">
+      <Graphs
+        sites={filteredSites}
+        datesByKPI={datesByKPI}
+        vendor="ZTE"
+        backPath="/zte-table"
+      />
       <h2 className="text-2xl text-purple-400 text-center py-4">ZTE KPI Performance Report</h2>
 
       <Filters

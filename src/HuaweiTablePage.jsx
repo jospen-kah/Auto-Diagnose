@@ -7,6 +7,7 @@
   import Filters from "./Components/filter.jsx";
   import KPITable from "./Components/KpiTable.jsx";
   import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
+  import Graphs from "./Components/Graphs.jsx";
 
   const STORAGE_KEY = "HUAWEI_TABLE_DATA";
 
@@ -188,6 +189,12 @@
 
     return (
       <div className="w-screen h-screen bg-gray-900 text-white flex flex-col">
+        <Graphs
+          sites={filteredSites}
+          datesByKPI={datesByKPI}
+          vendor="Huawei"
+          backPath="/huawei-table"
+        />
         <h2 className="text-2xl text-blue-400 text-center py-4">
           Huawei KPI Performance Report
         </h2>

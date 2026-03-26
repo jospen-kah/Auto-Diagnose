@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Filters from "./Components/filter.jsx";
 import KPITable from "./Components/KpiTable.jsx";
 import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
+import Graphs from "./Components/Graphs.jsx";
 import siteMap from "./utils/sites_full.json";
 import { getSitePriority } from "./utils/sitePriority";
 import { getDomainAndPriorityNokia } from "./utils/domain";
@@ -202,6 +203,12 @@ const NokiaTablePage = () => {
   /* ================= UI ================= */
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col">
+      <Graphs
+        sites={filteredSites}
+        datesByKPI={datesByKPI}
+        vendor="Nokia"
+        backPath="/nokia-table"
+      />
       <h2 className="text-2xl text-red-400 text-center py-4">
         Nokia KPI Performance Report
       </h2>
