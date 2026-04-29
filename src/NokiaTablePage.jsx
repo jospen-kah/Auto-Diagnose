@@ -4,7 +4,7 @@ import Filters from "./Components/filter.jsx";
 import KPITable from "./Components/KpiTable.jsx";
 import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
 import Graphs from "./Components/Graphs.jsx";
-import { loadVendorData } from "./utils/appStorage.js";
+import { loadVendorData, saveVendorData } from "./utils/appStorage.js";
 import siteMap from "./utils/sites_full.json";
 import { getSitePriority } from "./utils/sitePriority";
 import { getDomainAndPriorityNokia } from "./utils/domain";
@@ -82,6 +82,13 @@ const NokiaTablePage = () => {
     const run = async () => {
       if (location.state?.data) {
         setRawData(location.state.data);
+        // Extra safety: also persist to IndexedDB on first load.
+        // This guarantees "Reload Previous Table" works even if a previous save failed silently.
+        try {
+          await saveVendorData("nokia", location.state.data);
+        } catch (e) {
+          console.error("IndexedDB save failed (nokia - first load)", e);
+        }
         localStorage.setItem(
           STORAGE_META_KEY,
           JSON.stringify({ date: new Date().toLocaleString() })

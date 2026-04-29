@@ -9,6 +9,7 @@ import HuaweiPage from './Huawei';
 import NokiaTablePage from './NokiaTablePage';
 import GraphsPage from './GraphsPage';
 import AssemblePage from './AssemblePage';
+import WelcomePage from './WelcomePage';
 
 // Navigation Component with active tab highlighting
 const TechLinks = () => {
@@ -93,6 +94,7 @@ const PageHeading = () => {
   const location = useLocation();
   let heading = '';
 
+  if (location.pathname === '/') heading = 'Choose Your Vendor';
   if (location.pathname.startsWith('/zte')) heading = 'ZTE Auto Diagnose';
   else if (location.pathname.startsWith('/huawei')) heading = 'Huawei Auto Diagnose';
   else if (location.pathname.startsWith('/nokia')) heading = 'Nokia Auto Diagnose';
@@ -151,7 +153,7 @@ const App = () => {
             <Route path="/graphs" element={<GraphsPage />} />
             <Route path="/assemble" element={<AssemblePage />} />
             <Route path="/huawei" element={<HuaweiPage />} />
-            <Route path="/" element={<ZTEPage />} />
+            <Route path="/" element={<WelcomePage />} />
           </Routes>
         </div>
 

@@ -33,6 +33,11 @@ const NokiaPage = () => {
     }
   }, []);
 
+  const handleReloadPrevious = () => {
+    // NokiaTablePage will load from IndexedDB when navigation state is missing.
+    navigate("/nokia-table");
+  };
+
   const handleFileChange = (e, key) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -129,6 +134,13 @@ const NokiaPage = () => {
             Previous table generated on:
             <span className="text-red-400 ml-2">{previousDate}</span>
           </p>
+          <button
+            type="button"
+            onClick={handleReloadPrevious}
+            className="mt-3 px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded font-semibold"
+          >
+            Reload Previous Table
+          </button>
         </div>
       )}
 

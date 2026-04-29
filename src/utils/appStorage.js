@@ -16,12 +16,32 @@ const dbPromise = openDB(DB_NAME, DB_VERSION, {
 
 export async function saveVendorData(vendorKey, data) {
   const db = await dbPromise;
-  await db.put("vendorData", { data, savedAt: Date.now() }, vendorKey);
+  // IDB uses structured cloning; if something in `data` is not cloneable,
+  // we fall back to storing a JSON string.
+  try {
+    await db.put("vendorData", { data, savedAt: Date.now(), isJson: false }, vendorKey);
+  } catch (err) {
+    const json = JSON.stringify(data);
+    await db.put(
+      "vendorData",
+      { data: json, savedAt: Date.now(), isJson: true },
+      vendorKey
+    );
+  }
 }
 
 export async function loadVendorData(vendorKey) {
   const db = await dbPromise;
-  return await db.get("vendorData", vendorKey);
+  const record = await db.get("vendorData", vendorKey);
+  if (!record) return undefined;
+  if (record.isJson && typeof record.data === "string") {
+    try {
+      return { ...record, data: JSON.parse(record.data) };
+    } catch {
+      return record;
+    }
+  }
+  return record;
 }
 
 export async function clearVendorData(vendorKey) {
