@@ -8,6 +8,7 @@ import HuaweiTablePage from './HuaweiTablePage';
 import HuaweiPage from './Huawei';
 import NokiaTablePage from './NokiaTablePage';
 import GraphsPage from './GraphsPage';
+import AssemblePage from './AssemblePage';
 
 // Navigation Component with active tab highlighting
 const TechLinks = () => {
@@ -17,6 +18,7 @@ const TechLinks = () => {
     { path: '/nokia', label: 'Nokia' },
     { path: '/zte', label: 'ZTE' },
     { path: '/huawei', label: 'Huawei' },
+    { path: '/assemble', label: 'Assemble' },
   ];
 
   return (
@@ -147,6 +149,7 @@ const App = () => {
             <Route path="/huawei-table" element={<HuaweiTablePage />} />
             <Route path="/nokia-table" element={<NokiaTablePage />} />
             <Route path="/graphs" element={<GraphsPage />} />
+            <Route path="/assemble" element={<AssemblePage />} />
             <Route path="/huawei" element={<HuaweiPage />} />
             <Route path="/" element={<ZTEPage />} />
           </Routes>

@@ -9,6 +9,7 @@ import Filters from "./Components/filter.jsx";
 import KPITable from "./Components/KpiTable.jsx";
 import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
 import Graphs from "./Components/Graphs.jsx";
+import { loadVendorData } from "./utils/appStorage.js";
 
 const ZTETablePage = () => {
   const location = useLocation();
@@ -23,7 +24,19 @@ const ZTETablePage = () => {
   const [selectedDay, setSelectedDay] = useState(null);
 
   useEffect(() => {
-    if (location.state?.data) setRawData(location.state.data);
+    let cancelled = false;
+    const run = async () => {
+      if (location.state?.data) {
+        setRawData(location.state.data);
+        return;
+      }
+      const saved = await loadVendorData("zte");
+      if (!cancelled && Array.isArray(saved?.data)) setRawData(saved.data);
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [location.state]);
 
   const isEmpty = rawData.length === 0;

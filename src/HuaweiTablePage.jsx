@@ -8,8 +8,7 @@
   import KPITable from "./Components/KpiTable.jsx";
   import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
   import Graphs from "./Components/Graphs.jsx";
-
-  const STORAGE_KEY = "HUAWEI_TABLE_DATA";
+  import { loadVendorData } from "./utils/appStorage.js";
 
   const HuaweiTablePage = () => {
     const location = useLocation();
@@ -25,15 +24,19 @@
 
     /* ================= LOAD DATA ================= */
     useEffect(() => {
-      if (location.state?.data) {
-        setRawData(location.state.data);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(location.state.data));
-        } catch {}
-      } else {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) setRawData(JSON.parse(saved));
-      }
+      let cancelled = false;
+      const run = async () => {
+        if (location.state?.data) {
+          setRawData(location.state.data);
+          return;
+        }
+        const saved = await loadVendorData("huawei");
+        if (!cancelled && saved?.data) setRawData(saved.data);
+      };
+      run();
+      return () => {
+        cancelled = true;
+      };
     }, [location.state]);
 
     if (!rawData || Object.keys(rawData).length === 0) {

@@ -4,6 +4,7 @@ import Filters from "./Components/filter.jsx";
 import KPITable from "./Components/KpiTable.jsx";
 import SiteAnalysisModal from "./Components/SiteAnalysisModal.jsx";
 import Graphs from "./Components/Graphs.jsx";
+import { loadVendorData } from "./utils/appStorage.js";
 import siteMap from "./utils/sites_full.json";
 import { getSitePriority } from "./utils/sitePriority";
 import { getDomainAndPriorityNokia } from "./utils/domain";
@@ -77,16 +78,28 @@ const NokiaTablePage = () => {
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
-    if (location.state?.data) {
-      setRawData(location.state.data);
-      localStorage.setItem(
-        STORAGE_META_KEY,
-        JSON.stringify({ date: new Date().toLocaleString() })
-      );
-    } else {
+    let cancelled = false;
+    const run = async () => {
+      if (location.state?.data) {
+        setRawData(location.state.data);
+        localStorage.setItem(
+          STORAGE_META_KEY,
+          JSON.stringify({ date: new Date().toLocaleString() })
+        );
+        return;
+      }
+      const saved = await loadVendorData("nokia");
+      if (!cancelled && saved?.data) {
+        setRawData(saved.data);
+        return;
+      }
       alert("No Nokia data found. Please upload files again.");
       navigate("/nokia");
-    }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [location.state, navigate]);
 
   if (!Object.keys(rawData).length) {

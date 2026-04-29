@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { parseNokiaData } from "./utils/nokiaparser";
+import { saveVendorData } from "./utils/appStorage.js";
 
 const STORAGE_META_KEY = "NOKIA_TABLE_META"; // store only metadata
 
@@ -108,6 +109,11 @@ const NokiaPage = () => {
 
     setLoading(false);
     // Pass allData via navigate state
+    try {
+      await saveVendorData("nokia", allData);
+    } catch (e) {
+      console.error("IndexedDB save failed (nokia)", e);
+    }
     navigate("/nokia-table", { state: { data: allData } });
   };
 

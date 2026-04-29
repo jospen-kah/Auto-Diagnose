@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { parseZTEData } from "./utils/zteparser";
+import { saveVendorData } from "./utils/appStorage.js";
 
 const STORAGE_DATE_KEY = "ZTE_TABLE_DATE";
 
@@ -63,13 +64,19 @@ const ZTEPage = () => {
         })
     );
 
-    Promise.all(promises).then(() => {
+    Promise.all(promises).then(async () => {
       // Flatten all data into a single array
       const flattenedData = Object.values(allData).flat();
 
       const now = new Date();
       localStorage.setItem(STORAGE_DATE_KEY, now.toISOString());
       setLastLoadedDate(now);
+
+      try {
+        await saveVendorData("zte", flattenedData);
+      } catch (e) {
+        console.error("IndexedDB save failed (zte)", e);
+      }
 
       setLoading(false);
       navigate("/zte-table", { state: { data: flattenedData } });
@@ -78,11 +85,20 @@ const ZTEPage = () => {
 
   /* ================= RELOAD PREVIOUS TABLE ================= */
   const handleReloadPrevious = () => {
-    alert("Previous table data is too large to reload. Please re-upload the files.");
+    navigate("/zte-table");
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="flex justify-start mb-4">
+        <button
+          type="button"
+          onClick={() => navigate("/assemble")}
+          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          Assemble
+        </button>
+      </div>
       <h2 className="text-2xl font-bold text-purple-400 text-center mb-8">
         Upload ZTE KPI Files
       </h2>

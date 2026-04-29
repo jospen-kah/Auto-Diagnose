@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { parseHuaweiData } from "./utils/huaweiparser";
+import { saveVendorData } from "./utils/appStorage.js";
 
 const STORAGE_DATE_KEY = "HUAWEI_TABLE_DATE";
 
@@ -71,11 +72,17 @@ const HuaweiPage = () => {
         })
     );
 
-    Promise.all(promises).then(() => {
+    Promise.all(promises).then(async () => {
       const now = new Date().toLocaleString();
 
       // Save only small metadata, NOT the full data (avoid localStorage quota exceeded)
       localStorage.setItem(STORAGE_DATE_KEY, now);
+
+      try {
+        await saveVendorData("huawei", allData);
+      } catch (e) {
+        console.error("IndexedDB save failed (huawei)", e);
+      }
 
       setLoading(false);
       // Pass allData via navigate state
