@@ -16,6 +16,7 @@ const TechLinks = () => {
   const location = useLocation();
 
   const links = [
+    { path: '/', label: 'Home' },
     { path: '/nokia', label: 'Nokia' },
     { path: '/zte', label: 'ZTE' },
     { path: '/huawei', label: 'Huawei' },
@@ -26,7 +27,10 @@ const TechLinks = () => {
     <nav className="flex justify-center mt-6">
       <ul className="flex gap-4">
         {links.map((link) => {
-          const isActive = location.pathname.startsWith(link.path);
+          const isActive =
+            link.path === '/'
+              ? location.pathname === '/'
+              : location.pathname.startsWith(link.path);
           return (
             <li key={link.path}>
               <Link

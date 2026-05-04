@@ -21,12 +21,17 @@ export async function saveVendorData(vendorKey, data) {
   try {
     await db.put("vendorData", { data, savedAt: Date.now(), isJson: false }, vendorKey);
   } catch (err) {
-    const json = JSON.stringify(data);
-    await db.put(
-      "vendorData",
-      { data: json, savedAt: Date.now(), isJson: true },
-      vendorKey
-    );
+    try {
+      const json = JSON.stringify(data);
+      await db.put(
+        "vendorData",
+        { data: json, savedAt: Date.now(), isJson: true },
+        vendorKey
+      );
+    } catch (e2) {
+      console.error("saveVendorData: failed structured clone and JSON", vendorKey, e2);
+      throw e2;
+    }
   }
 }
 

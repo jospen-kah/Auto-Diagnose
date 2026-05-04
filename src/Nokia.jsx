@@ -112,13 +112,14 @@ const NokiaPage = () => {
       JSON.stringify({ date: new Date().toLocaleString() })
     );
 
-    setLoading(false);
-    // Pass allData via navigate state
+    // Persist before navigation (same order as Huawei/ZTE) so "Reload previous" works
     try {
       await saveVendorData("nokia", allData);
     } catch (e) {
       console.error("IndexedDB save failed (nokia)", e);
     }
+
+    setLoading(false);
     navigate("/nokia-table", { state: { data: allData } });
   };
 

@@ -64,11 +64,15 @@ const getSiteStatus = (site, datesByKPI) => {
 };
 
 
+const isNokiaBundle = (d) =>
+  d != null && typeof d === "object" && !Array.isArray(d) && Object.keys(d).length > 0;
+
 const NokiaTablePage = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
   const [rawData, setRawData] = useState({});
+  const [storageChecked, setStorageChecked] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
@@ -80,7 +84,7 @@ const NokiaTablePage = () => {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (location.state?.data) {
+      if (location.state?.data && isNokiaBundle(location.state.data)) {
         setRawData(location.state.data);
         // Extra safety: also persist to IndexedDB on first load.
         // This guarantees "Reload Previous Table" works even if a previous save failed silently.
@@ -93,15 +97,16 @@ const NokiaTablePage = () => {
           STORAGE_META_KEY,
           JSON.stringify({ date: new Date().toLocaleString() })
         );
+        if (!cancelled) setStorageChecked(true);
         return;
       }
       const saved = await loadVendorData("nokia");
-      if (!cancelled && saved?.data) {
-        setRawData(saved.data);
-        return;
+      if (cancelled) return;
+      const bundle = saved?.data;
+      if (isNokiaBundle(bundle)) {
+        setRawData(bundle);
       }
-      alert("No Nokia data found. Please upload files again.");
-      navigate("/nokia");
+      setStorageChecked(true);
     };
     run();
     return () => {
@@ -109,9 +114,21 @@ const NokiaTablePage = () => {
     };
   }, [location.state, navigate]);
 
+  if (!storageChecked) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-3 bg-gray-900 text-gray-300">
+        <p>Loading Nokia table…</p>
+      </div>
+    );
+  }
+
   if (!Object.keys(rawData).length) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-900">
+      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-gray-900 text-center px-4">
+        <p className="text-gray-300 max-w-md">
+          No saved Nokia data found. Upload the KPI files once, or use Reload Previous
+          after a successful upload.
+        </p>
         <button
           onClick={() => navigate("/nokia")}
           className="px-6 py-2 bg-red-500 text-white rounded"
@@ -144,7 +161,7 @@ const NokiaTablePage = () => {
   const groupedBySite = {};
 
   Object.keys(rawData).forEach((kpi) => {
-    rawData[kpi].forEach(({ siteCode, siteName, beginTime, kpiValue }) => {
+    (rawData[kpi] || []).forEach(({ siteCode, siteName, beginTime, kpiValue }) => {
       if (!siteCode) return;
 
       groupedBySite[siteCode] ??= { siteCode, siteName, kpis: {} };
